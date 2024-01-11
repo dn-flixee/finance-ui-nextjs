@@ -43,6 +43,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { z } from 'zod';
+import AddIncomeBar from './income'
+import IncomeSourceService from '@/components/IncomeSourceService';
+import IncomeService from '@/components/IncomeService';
+import AccountService from '@/components/AccountService';
+import { useEffect, useState } from 'react';
+
 
 interface Income {
   incomeId: number;
@@ -65,80 +71,86 @@ interface IncomeSource {
   name: string;
   goal: number;
 }
-const myDateSchema = z.date({
-  required_error: "Please select a date and time",
-  invalid_type_error: "That's not a date!",
-});
 
-const addIncome = z.object({
-  amount: z.string().min(1).max(255),
-  name: z.string().min(1).max(255),
-  account: z.string().min(1).max(255),
-  income_source: z.string().min(1).max(255),
-  date: myDateSchema
-})
 
-const handleSubmit = () => {
+const IncomePage = () => {
 
-}
+  const [incomeCard,setIncomeCard] = useState<Income[]>([])
+  const [account,setAccount] = useState<Account[]>([])
+  const [incomeSource,setIncomeSource] = useState<IncomeSource[]>([])
 
-const INCOME_API_BASE_URL = "http://localhost:8082/api/v1/income";
-const getIncome = async () => {
-  const res = await fetch(INCOME_API_BASE_URL, {
-    cache: 'no-cache',
-    next: {
-      revalidate: 30
-    }
+  useEffect(() => {
+    IncomeService.getIncome()
+    .then((Response) => {
+      console.log(Response.data)
+      setIncomeCard(Response.data)
+    }).catch(error => {
+      console.log(error)
+    })
+
+    IncomeSourceService.getIncomeSource()
+    .then((Response)=>{
+      console.log("source name")
+      console.log(Response.data)
+      setIncomeSource(Response.data)
+    }).catch( error =>{
+      console.log(error);
+    })
+
+    AccountService.getAccount()
+    .then((Response)=>{
+      console.log("account name")
+      console.log(Response.data)
+      setAccount(Response.data)
+    }).catch( error =>{
+      console.log(error);
+    })
+  }, [])
+
+
+  const myDateSchema = z.date({
+    required_error: "Please select a date and time",
+    invalid_type_error: "That's not a date!",
+  });
+
+  const addIncome = z.object({
+    amount: z.string().min(1).max(255),
+    name: z.string().min(1).max(255),
+    accountName: z.string().min(1).max(255),
+    incomeSourceName: z.string().min(1).max(255),
+    date: myDateSchema
   })
-  const income: Income[] = await res.json();
-}
 
-function Income() {
+  function onSubmit(values: z.infer<typeof addIncome>) {
+    
+    console.log("save button press")
+    IncomeService.saveIncome(values).then(Response => {
+      console.log(Response)
+    }).catch(error => {
+      console.log(error)
+    })
+
+    console.log(values)
+  }
+
   
   const form = useForm<z.infer<typeof addIncome>>({
     resolver : zodResolver(addIncome),
     defaultValues: {
         amount: "",
         name: "",
-        account: "",
-        income_source: "",
+        accountName: "",
+        incomeSourceName: "",
         date: new Date()
     }
-  });
+  })
 
-  const { register } = useForm<Income>();
 
-  // const addIncome = async (formData: FormData) => {
-  //   "use server";
-
-  //   const name = formData.get('name');
-  // }
-
-  // const saveIncome = (e) => 
-  //   e.preventDefault();
-  //   console.log("save button press")
-  //   IncomeService.saveIncome(income).then(Response => {
-  //     console.log(Response)
-  //   }).catch(error => {
-  //     console.log(error)
-  //   })
-
-  //   const deleteIncome = () =>{
-  //     IncomeService.deleteIncome(incomeId)
-  //     .then(Response => {
-  //       console.log(Response)
-  //     })
-  //     .catch(error =>{
-  //       console.log(error);
-  //     })
-  // }
 
 
   return (
     <>
-
       <div className='flex-1 border rounded-2xl border-primary m-6'>
-
         <div className='flex m-4'>
           <Image className='m-2' alt="wallet icon" src="/wallet_icon.png" width={25} height={25} />
           <p className="text-bold m-2 text-2xl text-primary"> I N C O M E</p>
@@ -179,6 +191,7 @@ function Income() {
 
 
             <div className='flex '>
+
               <Sheet>
                 <SheetTrigger asChild><Button className="bg-blue-600">New</Button></SheetTrigger>
                 <SheetContent>
@@ -189,7 +202,7 @@ function Income() {
                   </SheetHeader>
 
                           <Form {...form}>
-                          <form onSubmit={form.handleSubmit(handleSubmit)}>
+                          <form onSubmit={form.handleSubmit(onSubmit)}>
                             <FormField 
                                 control={form.control}  
                                 name="name" 
@@ -205,7 +218,7 @@ function Income() {
                             
                             <FormField
                               control={form.control}
-                              name="account"
+                              name="accountName"
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Account</FormLabel>
@@ -216,9 +229,9 @@ function Income() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      <SelectItem value="m@example.com">m@example.com</SelectItem>
-                                      <SelectItem value="m@google.com">m@google.com</SelectItem>
-                                      <SelectItem value="m@support.com">m@support.com</SelectItem>
+                                      {account && account.map((option,index) => (
+                                        <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                   <FormMessage />
@@ -228,7 +241,7 @@ function Income() {
 
                             <FormField
                                       control={form.control}
-                                      name="income_source"
+                                      name="incomeSourceName"
                                       render={({ field }) => (
                                         <FormItem>
                                           <FormLabel>Income Source</FormLabel>
@@ -239,9 +252,9 @@ function Income() {
                                               </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                              <SelectItem value="m@example.com">m@example.com</SelectItem>
-                                              <SelectItem value="m@google.com">m@google.com</SelectItem>
-                                              <SelectItem value="m@support.com">m@support.com</SelectItem>
+                                            {incomeSource && incomeSource.map((option,index) =>(
+                                          <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                        ))}
                                             </SelectContent>
                                           </Select>
                                           <FormMessage />
@@ -299,20 +312,31 @@ function Income() {
                 </SheetContent>
               </Sheet>
 
+
+
             </div>
           </div>
           <hr className='mt-2 mb-8' />
-          {/* {incomeCard.map(income => (
+          {incomeCard.map(income => (
             <label htmlFor="my-drawer-4" className="drawer-button ">
               <IncomeCard incomeId={income.incomeId} name={income.name} incomeAmount={income.amount} accountName={income.accountName} date={income.date} incomeSourceName={income.incomeSourceName} account={account} incomeSource={incomeSource} />
             </label>
 
-          ))} */}
+          ))}
 
         </div>
       </div>
     </>
   )
 }
+  export async function getServerSideProps() {
+    const INCOME_SOURCE_API_BASE_URL = "http://localhost:8082/api/v1/incomeSource";
 
-export default Income
+      const res = await fetch(INCOME_SOURCE_API_BASE_URL)
+      const incomeSource:IncomeSource[] = await res.json();
+      console.log("income")
+      console.log("=",incomeSource)
+      return { props: { incomeSource}, };
+    }
+
+export default IncomePage

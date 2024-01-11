@@ -1,19 +1,19 @@
 import React from 'react'
 import Navbar from '@/components/navbar'
-import IncomeSource from '@/components/incomeSource'
 import Income from './income'
-import Income1 from './income1'
+import IncomeSource from './IncomeSource'
 
-function IncomeDashboard() {
-  
+async function page() {
+ 
+
   return (
 
         <div className='flex flex-wrap h-full bg-#232323'>
-                <Income/>
-                {/* <IncomeSource/> */}
+                {/* <Income/> */}
+                <IncomeSource/>
               </div>
 
   )
 }
 
-export default IncomeDashboard
+export default page

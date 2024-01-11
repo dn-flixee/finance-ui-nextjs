@@ -1,5 +1,5 @@
 import React,{useState,useEffect} from 'react'
-import IncomeService from './IncomeService';
+import IncomeService from '../../components/IncomeService';
 import Image from 'next/image';
 import { Progress } from "@/components/ui/progress"
 

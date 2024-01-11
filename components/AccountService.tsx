@@ -1,16 +1,16 @@
-// import axios from "axios";
+import axios from "axios";
 
-// const ACCOUNT_API_BASE_URL = "http://localhost:8082/api/v1/account";
+const ACCOUNT_API_BASE_URL = "http://localhost:8082/api/v1/account";
 
-// class AccountService {
+class AccountService {
 
-//     saveAccount(account){
-//         return axios.post(ACCOUNT_API_BASE_URL,account)
-//     }
+    saveAccount = async (account:string) => {
 
-//     getAccount(){
-//         return axios.get(ACCOUNT_API_BASE_URL)
-//     }
-// }
+    }
 
-// export default new AccountService();
+    getAccount = async ()=>{
+        return axios.get(ACCOUNT_API_BASE_URL)
+    }
+}
+
+export default new AccountService();
