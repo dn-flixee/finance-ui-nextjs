@@ -48,6 +48,9 @@ import IncomeSourceService from '@/components/IncomeSourceService';
 import IncomeService from '@/components/IncomeService';
 import AccountService from '@/components/AccountService';
 import { useEffect, useState } from 'react';
+import { useToast } from "@/components/ui/use-toast"
+import { ToastAction } from "@/components/ui/toast"
+
 
 
 interface Income {
@@ -71,6 +74,19 @@ interface IncomeSource {
   name: string;
   goal: number;
 }
+
+const myDateSchema = z.date({
+  required_error: "Please select a date and time",
+  invalid_type_error: "That's not a date!",
+});
+
+const addIncome = z.object({
+  amount: z.string().min(1).max(255),
+  name: z.string().min(1).max(255),
+  accountName: z.string().min(1).max(255),
+  incomeSourceName: z.string().min(1).max(255),
+  date: myDateSchema
+})
 
 
 const IncomePage = () => {
@@ -106,33 +122,6 @@ const IncomePage = () => {
       console.log(error);
     })
   }, [])
-
-
-  const myDateSchema = z.date({
-    required_error: "Please select a date and time",
-    invalid_type_error: "That's not a date!",
-  });
-
-  const addIncome = z.object({
-    amount: z.string().min(1).max(255),
-    name: z.string().min(1).max(255),
-    accountName: z.string().min(1).max(255),
-    incomeSourceName: z.string().min(1).max(255),
-    date: myDateSchema
-  })
-
-  function onSubmit(values: z.infer<typeof addIncome>) {
-    
-    console.log("save button press")
-    IncomeService.saveIncome(values).then(Response => {
-      console.log(Response)
-    }).catch(error => {
-      console.log(error)
-    })
-
-    console.log(values)
-  }
-
   
   const form = useForm<z.infer<typeof addIncome>>({
     resolver : zodResolver(addIncome),
@@ -145,7 +134,21 @@ const IncomePage = () => {
     }
   })
 
+  const { toast } = useToast()
+  
+  function handleSubmit(values: z.infer<typeof addIncome>) {
+    console.log("save button press")
+    IncomeService.saveIncome(values).then(Response => {
+      console.log(Response)
+      toast({
+        description: "Your Input has been saved",
+      })
+    }).catch(error => {
+      console.log(error)
+    })
+  }
 
+  
 
 
   return (
@@ -200,114 +203,138 @@ const IncomePage = () => {
                     <SheetDescription>
                     </SheetDescription>
                   </SheetHeader>
+                    <Form {...form}>
+                        <form id="income-form" onSubmit={form.handleSubmit(handleSubmit)}>
+                          <FormField 
+                              control={form.control}  
+                              name="name" 
+                              render={({field})=>{
+                                return (<FormItem>
+                                  <FormLabel>Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder='name' type='text' {...field}/>                   
+                                  </FormControl>
+                                  <FormMessage/>
+                                </FormItem>);
+                          }}/>
 
-                          <Form {...form}>
-                          <form onSubmit={form.handleSubmit(onSubmit)}>
                             <FormField 
-                                control={form.control}  
-                                name="name" 
-                                render={({field})=>{
-                                  return (<FormItem>
-                                    <FormLabel>Name</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder='name' type='text' {...field}/>                   
-                                    </FormControl>
-                                    <FormMessage/>
-                                  </FormItem>);
-                            }}/>
-                            
-                            <FormField
-                              control={form.control}
-                              name="accountName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Account</FormLabel>
-                                  <Select onValueChange={field.onChange} >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Account" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {account && account.map((option,index) => (
+                              control={form.control}  
+                              name="amount" 
+                              render={({field})=>{
+                                return (<FormItem>
+                                  <FormLabel>Amount</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder='amount' type='number' {...field}/>                   
+                                  </FormControl>
+                                  <FormMessage/>
+                                </FormItem>);
+                          }}/>
+                          
+                          
+                          <FormField
+                            control={form.control}
+                            name="accountName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Account</FormLabel>
+                                <Select onValueChange={field.onChange} >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Account" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {account && account.map((option,index) => (
+                                      <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                                    control={form.control}
+                                    name="incomeSourceName"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Income Source</FormLabel>
+                                        <Select onValueChange={field.onChange} >
+                                          <FormControl>
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Income Source" />
+                                            </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                          {incomeSource && incomeSource.map((option,index) =>(
                                         <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                       ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                                      control={form.control}
-                                      name="incomeSourceName"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Income Source</FormLabel>
-                                          <Select onValueChange={field.onChange} >
-                                            <FormControl>
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Income Source" />
-                                              </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                            {incomeSource && incomeSource.map((option,index) =>(
-                                          <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
-                                        ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                          
+                          
+                          <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <FormLabel className=' mt-2'>Date</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "w-[240px] pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        {field.value ? (
+                                          format(field.value, "PPP")
+                                        ) : (
+                                          <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={field.onChange}
+                                      disabled={(date) =>
+                                        date > new Date() || date < new Date("1900-01-01")
+                                      }
+                                      initialFocus
                                     />
-                            
-                            
-                            <FormField
-                              control={form.control}
-                              name="date"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                  <FormLabel className=' mt-2'>Date</FormLabel>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant={"outline"}
-                                          className={cn(
-                                            "w-[240px] pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                          )}
-                                        >
-                                          {field.value ? (
-                                            format(field.value, "PPP")
-                                          ) : (
-                                            <span>Pick a date</span>
-                                          )}
-                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) =>
-                                          date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <Button type='submit' className='mt-2'>submit</Button>
-                          </form>
-                      </Form>
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                         <SheetFooter>
+                          <Button type='submit' className='mt-2'
+                            form='income-form'
+                            onClick={() => {
+                              toast({
+                                title: "Scheduled: Catch up ",
+                                description: "Friday, February 10, 2023 at 5:57 PM",
+                                action: (
+                                  <ToastAction altText="Goto schedule to undo">Undo</ToastAction>
+                                ),
+                              })
+                            }}>Submit</Button>
+                            </SheetFooter>
+                        </form>
+                    </Form>
 
                 </SheetContent>
               </Sheet>

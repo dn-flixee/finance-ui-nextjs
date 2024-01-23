@@ -9,7 +9,7 @@ async function page() {
   return (
 
         <div className='flex flex-wrap h-full bg-#232323'>
-                {/* <Income/> */}
+                <Income/>
                 <IncomeSource/>
               </div>
 

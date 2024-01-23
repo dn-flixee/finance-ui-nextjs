@@ -67,7 +67,7 @@ function IncomeSource() {
 
   const addIncomeSource = z.object({
     name: z.string().min(1).max(255),
-    goal: z.number().min(1).max(255)
+    goal: z.number()
   })
 
   function onSubmit(values: z.infer<typeof addIncomeSource>) {
@@ -78,8 +78,8 @@ function IncomeSource() {
     }).catch(error => {
       console.log(error)
     })
-
     console.log(values)
+
   }
 
   const form = useForm<z.infer<typeof addIncomeSource>>({
@@ -162,9 +162,9 @@ function IncomeSource() {
                                 name="goal" 
                                 render={({field})=>{
                                   return (<FormItem>
-                                    <FormLabel>Name</FormLabel>
+                                    <FormLabel>Goal</FormLabel>
                                     <FormControl>
-                                      <Input placeholder='goal' type='text' {...field}/>                   
+                                      <Input placeholder='goal' type='number' {...field}/>                   
                                     </FormControl>
                                     <FormMessage/>
                                   </FormItem>);
