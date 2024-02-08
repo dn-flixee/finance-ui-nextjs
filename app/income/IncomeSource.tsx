@@ -2,6 +2,7 @@
 import React,{useState,useEffect} from 'react'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
+import IncomeSourceCard from './IncomeSourceCard'
 import IncomeSourceService from '@/components/IncomeSourceService';
 import {
   Select,
@@ -45,8 +46,11 @@ import {
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import IncomeService from '@/components/IncomeService';
+import { toast, useToast } from '@/components/ui/use-toast';
 
 function IncomeSource() {
+
+  const { toast } = useToast()
 
   const [incomeSourceCard,setIncomeSourceCard] = useState([])
 
@@ -62,12 +66,15 @@ function IncomeSource() {
       setIncomeSourceCard(Response.data)
     }).catch(error => {
       console.log(error)
+      toast({
+        description: "Unable to fetch the Income Source Data",
+      })
     })
   }, [])
 
   const addIncomeSource = z.object({
     name: z.string().min(1).max(255),
-    goal: z.number()
+    goal: z.coerce.number().positive()
   })
 
   function onSubmit(values: z.infer<typeof addIncomeSource>) {
@@ -75,8 +82,15 @@ function IncomeSource() {
     console.log("save button press")
     IncomeSourceService.saveIncomeSource(values).then(Response => {
       console.log(Response)
+      toast({
+        description: "Your Input has been saved",
+      })
     }).catch(error => {
       console.log(error)
+      toast({
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
     })
     console.log(values)
 
@@ -158,17 +172,17 @@ function IncomeSource() {
                             }}/>
                             
                             <FormField 
-                                control={form.control}  
-                                name="goal" 
-                                render={({field})=>{
-                                  return (<FormItem>
-                                    <FormLabel>Goal</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder='goal' type='number' {...field}/>                   
-                                    </FormControl>
-                                    <FormMessage/>
-                                  </FormItem>);
-                            }}/>
+                              control={form.control}  
+                              name="goal" 
+                              render={({field})=>{
+                                return (<FormItem>
+                                  <FormLabel>Goal</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder='goal' type='number' {...field}/>                   
+                                  </FormControl>
+                                  <FormMessage/>
+                                </FormItem>);
+                          }}/>
 
 
                             <Button type='submit' className='mt-2'>submit</Button>
@@ -182,9 +196,9 @@ function IncomeSource() {
         </div>
         <hr className='mt-2 mb-8'/>
           <div className="flex flex-wrap gap-3 ">
-            {/* {incomeSourceCard.map( incomeSource =>(
+            {incomeSourceCard.map( incomeSource =>(
             <IncomeSourceCard id={incomeSource.incomeSourceId} name={incomeSource.name} goal={incomeSource.goal} />
-            ))} */}
+            ))}
           </div>
       </div>
       </div>

@@ -1,8 +1,6 @@
-'use client';
-import IncomeCard from './IncomeCard';
-import { useForm } from 'react-hook-form'
-import Image from 'next/image';
-import { zodResolver } from "@hookform/resolvers/zod"
+import React, { useState } from 'react'
+import IncomeService from '../../components/IncomeService'
+import Image from 'next/image'
 import {
   Select,
   SelectContent,
@@ -13,6 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetClose,
+  SheetFooter,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import {
   Form,
   FormControl,
   FormDescription,
@@ -22,18 +30,21 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import {
-  Sheet,
-  SheetClose,
-  SheetFooter,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input"
-import { format } from "date-fns"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+
+import { format, set } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
+ 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -42,16 +53,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { z } from 'zod';
-import AddIncomeBar from './income'
-import IncomeSourceService from '@/components/IncomeSourceService';
-import IncomeService from '@/components/IncomeService';
-import AccountService from '@/components/AccountService';
-import { useEffect, useState } from 'react';
-import { useToast } from "@/components/ui/use-toast"
-import { ToastAction } from "@/components/ui/toast"
-
-
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Input } from '@/components/ui/input';
+import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Income {
   incomeId: number;
@@ -74,74 +81,47 @@ interface IncomeSource {
   name: string;
   goal: number;
 }
+interface IncomeCardProps {
+  income: Income;
+  account: Account[];
+  incomeSource: IncomeSource[];
+}
 
 const myDateSchema = z.date({
   required_error: "Please select a date and time",
   invalid_type_error: "That's not a date!",
 });
 
-
-const addIncome = z.object({
-  amount: z.coerce.number().positive(),
+const updateIncome = z.object({
+  amount: z.number().positive(),
   name: z.string().min(1).max(255),
   accountName: z.string().min(1).max(255),
   incomeSourceName: z.string().min(1).max(255),
   date: myDateSchema
 })
 
+const IncomeCard: React.FC<IncomeCardProps> = ({
+  income,
+  account,
+  incomeSource
+}) => {
 
+  const { toast } = useToast()
 
-
-const IncomePage = () => {
-
-  const [incomeCard,setIncomeCard] = useState<Income[]>([])
-  const [account,setAccount] = useState<Account[]>([])
-  const [incomeSource,setIncomeSource] = useState<IncomeSource[]>([])
-
-  useEffect(() => {
-    IncomeService.getIncome()
-    .then((Response) => {
-      console.log(Response.data)
-      setIncomeCard(Response.data)
-    }).catch(error => {
-      console.log(error)
-    })
-
-    IncomeSourceService.getIncomeSource()
-    .then((Response)=>{
-      console.log("source name")
-      console.log(Response.data)
-      setIncomeSource(Response.data)
-    }).catch( error =>{
-      console.log(error);
-    })
-
-    AccountService.getAccount()
-    .then((Response)=>{
-      console.log("account name")
-      console.log(Response.data)
-      setAccount(Response.data)
-    }).catch( error =>{
-      console.log(error);
-    })
-  }, [])
-  
-  const form = useForm<z.infer<typeof addIncome>>({
-    resolver : zodResolver(addIncome),
+  const form = useForm<z.infer<typeof updateIncome>>({
+    resolver : zodResolver(updateIncome),
     defaultValues: {
-        amount: 0,
-        name: "",
-        accountName: "",
-        incomeSourceName: "",
-        date: new Date()
+        amount: income.amount,
+        name: income.name,
+        accountName: income.accountName,
+        incomeSourceName: income.incomeSourceName,
+        date: income.date
     }
   })
 
-
-  
-  function handleSubmit(values: z.infer<typeof addIncome>) {
-    console.log("save button press")
-    IncomeService.saveIncome(values).then(Response => {
+  const handleSubmit = (value: z.infer<typeof updateIncome>) => {
+    console.log("Update button press")
+    IncomeService.updateIncome(income.incomeId,value).then(Response => {
       console.log(Response)
       toast({
         description: "Your Input has been saved",
@@ -155,64 +135,51 @@ const IncomePage = () => {
     })
   }
 
-  const { toast } = useToast()
-
-
+  const deleteIncome = () =>{
+    IncomeService.deleteIncome(income.incomeId)
+    .then(Response => {
+      console.log(Response)
+      toast({
+        description: "Income has been deleted",
+      })
+    })
+    .catch(error =>{
+      console.log(error)
+      toast({
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
+    })
+}
+  
   return (
     <>
     
-      <div className='flex-1 border rounded-2xl border-primary m-6'>
-        <div className='flex m-4'>
-          <Image className='m-2' alt="wallet icon" src="/wallet_icon.png" width={25} height={25} />
-          <p className="text-bold m-2 text-2xl text-primary"> I N C O M E</p>
+    <Sheet>
+  <SheetTrigger className=''>
+    
+  <div className='flex flex-row justify-between rounded-md h-10 p-2 mb-2'>
+        <div className='flex justify-items-start '>
+            <Image src="/income_icon.png" width={25} height={25} alt="income icon"/>
+            <p className='font-semibold p-1'>{income.name}</p>
         </div>
+        <div className='flex justify-around justify-items-end '>
+            <div className='p-1'><p className='font-semibold'>₹{income.amount}</p></div>
+            <div className='pr-1'><img src="/bank_icon.png" width={25} height={25}></img></div>
+            <div className='p-1'><p className='font-semibold'>{income.accountName}</p></div>
+        </div>
+    </div>
 
-        <div className="container p-4">
-          <div className="flex flex-row">
-            <div className="flex flex-grow ">
-              <div className="mr-2">
-                <Select>
-                  <SelectTrigger className="max-w-28">
-                    <SelectValue placeholder="Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="est">Jan</SelectItem>
-                    <SelectItem value="cst">Feb</SelectItem>
-                    <SelectItem value="mst">Mar</SelectItem>
-                    <SelectItem value="pst">Apr</SelectItem>
-                    <SelectItem value="akst">May</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="mr-2">
-                <Select>
-                  <SelectTrigger className="max-w-28">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="est">2021</SelectItem>
-                    <SelectItem value="cst">2022</SelectItem>
-                    <SelectItem value="mst">2023</SelectItem>
-                    <SelectItem value="pst">2024</SelectItem>
-                    <SelectItem value="akst">2025</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+  </SheetTrigger>
+  <SheetContent>
+    <SheetHeader>
+      <SheetTitle>Edit Income</SheetTitle>
+      <SheetDescription>
+      </SheetDescription>
+    </SheetHeader>
 
-
-            <div className='flex '>
-
-              <Sheet>
-                <SheetTrigger asChild><Button className="bg-blue-600">New</Button></SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Add Income</SheetTitle>
-                    <SheetDescription>
-                    </SheetDescription>
-                  </SheetHeader>
-                    <Form {...form}>
-                        <form id="income-form" onSubmit={form.handleSubmit(handleSubmit)}>
+    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(handleSubmit)}>
                           <FormField 
                               control={form.control}  
                               name="name" 
@@ -249,10 +216,11 @@ const IncomePage = () => {
                                 <Select onValueChange={field.onChange} >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Account" />
+                                      <SelectValue placeholder={income.accountName} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
+                                    
                                     {account && account.map((option,index) => (
                                       <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                     ))}
@@ -272,7 +240,7 @@ const IncomePage = () => {
                                         <Select onValueChange={field.onChange} >
                                           <FormControl>
                                             <SelectTrigger>
-                                              <SelectValue placeholder="Income Source" />
+                                              <SelectValue placeholder={income.incomeSourceName} />
                                             </SelectTrigger>
                                           </FormControl>
                                           <SelectContent>
@@ -329,44 +297,40 @@ const IncomePage = () => {
                             )}
                           />
                          <SheetFooter>
-                          <Button type='submit' className='mt-2'
-                            form='income-form'
-                            >Submit</Button>
+                         <SheetClose asChild>
+
+                         <AlertDialog>
+                          <AlertDialogTrigger>
+                          <Button className='mt-2' variant="destructive" type="button">Delete</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your account
+                                and remove your data from our servers.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={deleteIncome}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
+                         </SheetClose>
+                          <Button type='submit' className='mt-2'>Update</Button>
+                          
                             </SheetFooter>
                         </form>
                     </Form>
 
-                </SheetContent>
-              </Sheet>
 
-
-
-            </div>
-          </div>
-          <hr className='mt-2 mb-8' />
-          {incomeCard.map(income => (
-            <label htmlFor="my-drawer-4" className="drawer-button ">
-              <IncomeCard 
-                income={income}
-                account={account} 
-                incomeSource={incomeSource} />
-            </label>
-
-          ))}
-
-        </div>
-      </div>
-    </>
+  </SheetContent>
+</Sheet>
+</>
+    
   )
 }
-  export async function getServerSideProps() {
-    const INCOME_SOURCE_API_BASE_URL = "http://localhost:8082/api/v1/incomeSource";
 
-      const res = await fetch(INCOME_SOURCE_API_BASE_URL)
-      const incomeSource:IncomeSource[] = await res.json();
-      console.log("income")
-      console.log("=",incomeSource)
-      return { props: { incomeSource}, };
-    }
-
-export default IncomePage
+export default IncomeCard

@@ -2,7 +2,7 @@ import axios from "axios";
 
 interface Income {
     name: string;
-    amount: string;
+    amount: number;
     date: Date;
     accountName: string;
     incomeSourceName: string;
