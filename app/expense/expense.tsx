@@ -1,5 +1,5 @@
 'use client';
-import IncomeCard from './IncomeCard';
+import ExpenseCard from './ExpenseCard';
 import { useForm } from 'react-hook-form'
 import Image from 'next/image';
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -43,9 +43,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { z } from 'zod';
-import AddIncomeBar from './income'
-import IncomeSourceService from '@/components/IncomeSourceService';
-import IncomeService from '@/components/IncomeService';
+import AddExpenseBar from './expense'
+import ExpenseSourceService from '@/components/ExpenseSourceService';
+import ExpenseService from '@/components/ExpenseService';
 import AccountService from '@/components/AccountService';
 import { useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast"
@@ -53,13 +53,13 @@ import { ToastAction } from "@/components/ui/toast"
 
 
 
-interface Income {
-  incomeId: number;
+interface Expense {
+  expenseId: number;
   name: string;
   amount: number;
   date: Date;
   accountName: string;
-  incomeSourceName: string;
+  expenseSourceName: string;
 }
 
 interface Account {
@@ -69,8 +69,8 @@ interface Account {
   type: number;
 }
 
-interface IncomeSource {
-  incomeSource: number;
+interface ExpenseSource {
+  expenseSource: number;
   name: string;
   goal: number;
 }
@@ -81,37 +81,37 @@ const myDateSchema = z.date({
 });
 
 
-const addIncome = z.object({
+const addExpense = z.object({
   amount: z.coerce.number().positive(),
   name: z.string().min(1).max(255),
   accountName: z.string().min(1).max(255),
-  incomeSourceName: z.string().min(1).max(255),
+  expenseSourceName: z.string().min(1).max(255),
   date: myDateSchema
 })
 
 
 
 
-const IncomePage = () => {
+const ExpensePage = () => {
 
-  const [incomeCard,setIncomeCard] = useState<Income[]>([])
+  const [expenseCard,setExpenseCard] = useState<Expense[]>([])
   const [account,setAccount] = useState<Account[]>([])
-  const [incomeSource,setIncomeSource] = useState<IncomeSource[]>([])
+  const [expenseSource,setExpenseSource] = useState<ExpenseSource[]>([])
 
   useEffect(() => {
-    IncomeService.getIncome()
+    ExpenseService.getExpense()
     .then((Response) => {
       console.log(Response.data)
-      setIncomeCard(Response.data)
+      setExpenseCard(Response.data)
     }).catch(error => {
       console.log(error)
     })
 
-    IncomeSourceService.getIncomeSource()
+    ExpenseSourceService.getExpenseSource()
     .then((Response)=>{
       console.log("source name")
       console.log(Response.data)
-      setIncomeSource(Response.data)
+      setExpenseSource(Response.data)
     }).catch( error =>{
       console.log(error);
     })
@@ -126,22 +126,22 @@ const IncomePage = () => {
     })
   }, [])
   
-  const form = useForm<z.infer<typeof addIncome>>({
-    resolver : zodResolver(addIncome),
+  const form = useForm<z.infer<typeof addExpense>>({
+    resolver : zodResolver(addExpense),
     defaultValues: {
         amount: 0,
         name: "",
         accountName: "",
-        incomeSourceName: "",
+        expenseSourceName: "",
         date: new Date()
     }
   })
 
 
   
-  function handleSubmit(values: z.infer<typeof addIncome>) {
+  function handleSubmit(values: z.infer<typeof addExpense>) {
     console.log("save button press")
-    IncomeService.saveIncome(values).then(Response => {
+    ExpenseService.saveExpense(values).then(Response => {
       console.log(Response)
       toast({
         description: "Your Input has been saved",
@@ -207,12 +207,12 @@ const IncomePage = () => {
                 <SheetTrigger asChild><Button className="bg-blue-600">New</Button></SheetTrigger>
                 <SheetContent>
                   <SheetHeader>
-                    <SheetTitle>Add Income</SheetTitle>
+                    <SheetTitle>Add Expense</SheetTitle>
                     <SheetDescription>
                     </SheetDescription>
                   </SheetHeader>
                     <Form {...form}>
-                        <form id="income-form" onSubmit={form.handleSubmit(handleSubmit)}>
+                        <form id="expense-form" onSubmit={form.handleSubmit(handleSubmit)}>
                           <FormField 
                               control={form.control}  
                               name="name" 
@@ -265,18 +265,18 @@ const IncomePage = () => {
 
                           <FormField
                                     control={form.control}
-                                    name="incomeSourceName"
+                                    name="expenseSourceName"
                                     render={({ field }) => (
                                       <FormItem>
-                                        <FormLabel>Income Source</FormLabel>
+                                        <FormLabel>Expense Source</FormLabel>
                                         <Select onValueChange={field.onChange} >
                                           <FormControl>
                                             <SelectTrigger>
-                                              <SelectValue placeholder="Income Source" />
+                                              <SelectValue placeholder="Expense Source" />
                                             </SelectTrigger>
                                           </FormControl>
                                           <SelectContent>
-                                          {incomeSource && incomeSource.map((option,index) =>(
+                                          {expenseSource && expenseSource.map((option,index) =>(
                                         <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                       ))}
                                           </SelectContent>
@@ -330,7 +330,7 @@ const IncomePage = () => {
                           />
                          <SheetFooter>
                           <Button type='submit' className='mt-2'
-                            form='income-form'
+                            form='expense-form'
                             >Submit</Button>
                             </SheetFooter>
                         </form>
@@ -346,11 +346,11 @@ const IncomePage = () => {
           <hr className='mt-2 mb-8' />
           <table></table>
           
-          {incomeCard.map(income => (
-              <IncomeCard 
-                income={income}
+          {expenseCard.map(expense => (
+              <ExpenseCard 
+                expense={expense}
                 account={account} 
-                incomeSource={incomeSource} 
+                expenseSource={expenseSource} 
                 />
           ))}
 
@@ -360,4 +360,4 @@ const IncomePage = () => {
   )
 }
 
-export default IncomePage
+export default ExpensePage
