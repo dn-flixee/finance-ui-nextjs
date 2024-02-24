@@ -164,7 +164,7 @@ const ExpensePage = () => {
       <div className='flex-1 border rounded-2xl border-primary m-6'>
         <div className='flex m-4'>
           <Image className='m-2' alt="wallet icon" src="/wallet_icon.png" width={25} height={25} />
-          <p className="text-bold m-2 text-2xl text-primary"> I N C O M E</p>
+          <p className="text-bold m-2 text-2xl text-primary"> EXPENSE</p>
         </div>
 
         <div className="container p-4">

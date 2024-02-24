@@ -1,11 +1,9 @@
+"use client"
 import React,{useState,useEffect} from 'react'
-import ExpenseService from '../../components/ExpenseService';
-import Image from 'next/image';
-import { Progress } from "@/components/ui/progress"
-import { number, z } from 'zod';
-import { useForm } from 'react-hook-form'
+import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast, useToast } from '@/components/ui/use-toast';
+import ExpenseSourceCard from './ExpenseSourceCard'
+import ExpenseSourceService from '@/components/ExpenseSourceService';
 import {
   Select,
   SelectContent,
@@ -35,57 +33,57 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import ExpenseSourceService from '@/components/ExpenseSourceService';
+import { Calendar } from "@/components/ui/calendar"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import ExpenseService from '@/components/ExpenseService';
+import { toast, useToast } from '@/components/ui/use-toast';
 
-interface ExpenseSourceCardProps {
-  id: number;
-  name: string;
-  budget: number;
-}
-
-const ExpenseSourceCard : React.FC<ExpenseSourceCardProps> = ({id,name,budget})  => {
-
-  const [expenseTotal, setExpenseTotal] = useState<number>();
-
-  useEffect(() => {
-    ExpenseService.fetchExpenseTotalById(id)
-    .then((Response) => {
-      console.log(Response.data)
-      if(Response.data)
-      setExpenseTotal(Response.data)
-    }).catch(error => {
-      console.log(error)
-    })
-  }, [])
+function ExpenseSource() {
 
   const { toast } = useToast()
 
-  const updateExpenseSource = z.object({
-    name: z.string().min(1).max(255),
-    goal: z.coerce.number().positive()
+  const [expenseSourceCard,setExpenseSourceCard] = useState([])
+
+  const [expenseSource, setExpenseSource] = useState({
+    name:"",
+    budget:"",
   })
 
-  
+  useEffect(() => {
+    ExpenseSourceService.getExpenseSource()
+    .then((Response) => {
+      console.log(Response.data)
+      setExpenseSourceCard(Response.data)
+    }).catch(error => {
+      console.log(error)
+      toast({
+        description: "Unable to fetch the Expense Source Data",
+      })
+    })
+  }, [])
 
-  const handleSubmit = (values: z.infer<typeof updateExpenseSource>) => {
+  const addExpenseSource = z.object({
+    name: z.string().min(1).max(255),
+    budget: z.coerce.number().positive()
+  })
+
+  function onSubmit(values: z.infer<typeof addExpenseSource>) {
     
     console.log("save button press")
-    ExpenseSourceService.updateExpenseSource(id,values).then(Response => {
+    ExpenseSourceService.saveExpenseSource(values).then(Response => {
       console.log(Response)
       toast({
-        description: "Your Input has been updated",
+        description: "Your Input has been saved",
       })
     }).catch(error => {
       console.log(error)
@@ -95,65 +93,71 @@ const ExpenseSourceCard : React.FC<ExpenseSourceCardProps> = ({id,name,budget}) 
       })
     })
     console.log(values)
+
   }
 
-  const deleteExpenseSource = () =>{
-    ExpenseSourceService.deleteExpenseSource(id)
-    .then(Response => {
-      console.log(Response)
-      toast({
-        description: "Expense Source has been deleted",
-      })
-    })
-    .catch(error =>{
-      console.log(error)
-      toast({
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-    })
-}
-
-  const form = useForm<z.infer<typeof updateExpenseSource>>({
-    resolver : zodResolver(updateExpenseSource),
+  const form = useForm<z.infer<typeof addExpenseSource>>({
+    resolver : zodResolver(addExpenseSource),
     defaultValues: {
-        name: name,
-        goal: goal,
+        name: "",
+        budget: 0,
     }
   })
-
+  
   return (
-    <>
-    <Sheet>
-                <SheetTrigger asChild>
+    <div className='flex-1 border rounded-2xl border-primary m-6'>
 
-                <div className="flex flex-col w-64 bg-primary text-white rounded-md">
-                  <div className="flex flex-row m-2">
-                    <div className='justify-start '>
-                      <Image src="/expense_icon.png" width={25} height={25} alt='icon'/>  
-                    </div>
-                    <div className='ml-2'>{name}</div>
-                  </div>
+        <div className='flex m-4'>
+        <Image className='m-2' alt="wallet icon" src="/wallet_icon.png" width={25} height={25} />
+          <p className="text-bold m-2 text-2xl text-primary">EXPENSE </p>
+          <p className="text-bold m-2 text-2xl text-primary">S O U R C E</p>
+        </div>
 
-                  <div className='m-1 ml-2'><p>₹{expenseTotal} / ₹{goal}</p></div>
-                  
-                  <div className=" flex flex-nowrap items-center m-1">
-                  <Progress value={(expenseTotal/goal*100).toFixed(2)}/>
-                  {((expenseTotal/goal*100).toFixed(2) > 100)? 'Done': (expenseTotal/goal*100).toFixed(2)  + '%'}
-
-                  </div>
+      <div className="container p-4">
+       <div className="flex flex-row">
+        <div className="flex flex-grow">
+        <div className="mr-2">
+                <Select>
+                  <SelectTrigger className="max-w-28">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="est">Jan</SelectItem>
+                    <SelectItem value="cst">Feb</SelectItem>
+                    <SelectItem value="mst">Mar</SelectItem>
+                    <SelectItem value="pst">Apr</SelectItem>
+                    <SelectItem value="akst">May</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="mr-2">
+                <Select>
+                  <SelectTrigger className="max-w-28">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="est">2021</SelectItem>
+                    <SelectItem value="cst">2022</SelectItem>
+                    <SelectItem value="mst">2023</SelectItem>
+                    <SelectItem value="pst">2024</SelectItem>
+                    <SelectItem value="akst">2025</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+          </div>
+          <div className='flex'>
 
-                </SheetTrigger>
+          <Sheet>
+                <SheetTrigger asChild><Button className="bg-blue-600">New</Button></SheetTrigger>
                 <SheetContent>
                   <SheetHeader>
-                    <SheetTitle>Update Expense</SheetTitle>
+                    <SheetTitle>Add Expense</SheetTitle>
                     <SheetDescription>
                     </SheetDescription>
                   </SheetHeader>
 
                           <Form {...form}>
-                          <form onSubmit={form.handleSubmit(handleSubmit)}>
+                          <form onSubmit={form.handleSubmit(onSubmit)}>
                             <FormField 
                                 control={form.control}  
                                 name="name" 
@@ -169,51 +173,36 @@ const ExpenseSourceCard : React.FC<ExpenseSourceCardProps> = ({id,name,budget}) 
                             
                             <FormField 
                               control={form.control}  
-                              name="goal" 
+                              name="budget" 
                               render={({field})=>{
                                 return (<FormItem>
-                                  <FormLabel>Goal</FormLabel>
+                                  <FormLabel>Budget</FormLabel>
                                   <FormControl>
-                                    <Input placeholder='goal' type='number' {...field}/>                   
+                                    <Input placeholder='budget' type='number' {...field}/>                   
                                   </FormControl>
                                   <FormMessage/>
                                 </FormItem>);
                           }}/>
 
-                    <SheetFooter>
-                    <SheetClose asChild>
-                        <AlertDialog>
-                        <AlertDialogTrigger>
-                        <Button className='mt-2' variant="destructive" type='button'>Delete</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete your account
-                              and remove your data from our servers.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={deleteExpenseSource}>Continue</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
 
-                        </SheetClose>
-                    
-                            <Button type='submit' className='mt-2'>Submit</Button>
-                          </SheetFooter>
+                            <Button type='submit' className='mt-2'>submit</Button>
                           </form>
                       </Form>
-                    
+
                 </SheetContent>
-                
               </Sheet>
-    
-        </>
+
+          </div>
+        </div>
+        <hr className='mt-2 mb-8'/>
+          <div className="flex flex-wrap gap-3 ">
+            {expenseSourceCard.map( expenseSource =>(
+            <ExpenseSourceCard id={expenseSource.expenseSourceId} name={expenseSource.name} budget={expenseSource.budget} />
+            ))}
+          </div>
+      </div>
+      </div>
   )
 }
 
-export default ExpenseSourceCard
+export default ExpenseSource
