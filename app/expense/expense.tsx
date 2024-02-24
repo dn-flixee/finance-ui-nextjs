@@ -52,7 +52,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 
 
-
+interface test {}
 interface Expense {
   expenseId: number;
   name: string;
