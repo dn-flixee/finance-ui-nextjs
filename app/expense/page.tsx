@@ -1,17 +1,21 @@
 import React from 'react'
-import Navbar from '@/components/navbar'
+import Navbar from '@/components/NavBar'
 import Expense from './expense'
 import ExpenseSource from './ExpenseSource'
+import Chat from '@/components/Chat'
 
 async function page() {
  
 
   return (
-
-        <div className='flex flex-wrap h-full bg-#232323'>
-                <Expense/>
-                <ExpenseSource/>
-              </div>
+    <>
+      <Navbar />
+      <div className='flex flex-wrap h-full bg-#232323'>
+        <Expense/>
+        <ExpenseSource/>
+      </div>
+      <Chat/>
+    </>
 
   )
 }

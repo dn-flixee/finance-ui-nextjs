@@ -8,7 +8,7 @@ interface Income {
     incomeSourceName: string;
   }
 
-const INCOME_API_BASE_URL = "http://localhost:8082/api/v1/income";
+const INCOME_API_BASE_URL = "http://raspi.dn:8082/api/v1/income";
 
 class IncomeService{
 
@@ -16,17 +16,17 @@ class IncomeService{
         return axios.post(INCOME_API_BASE_URL,income)
     }
     updateIncome = async (incomeid:number, income:Income) => {
-        return axios.put(`http://localhost:8082/api/v1/income/${incomeid}`,income)
+        return axios.put(`${INCOME_API_BASE_URL}/${incomeid}`,income)
     }
 
     getIncome = async () => {
         return axios.get(INCOME_API_BASE_URL)
     }
     fetchIncomeTotalById = async (incomeSourceId:number) => {
-        return axios.get(`http://localhost:8082/api/v1/income/${incomeSourceId}/total`);
+        return axios.get(`${INCOME_API_BASE_URL}/${incomeSourceId}/total`);
     }
     deleteIncome = async (incomeId:number) => {
-        return axios.delete(`http://localhost:8082/api/v1/income/${incomeId}` )
+        return axios.delete(`${INCOME_API_BASE_URL}/${incomeId}` )
     }
 }
 

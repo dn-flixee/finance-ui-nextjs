@@ -91,7 +91,7 @@ const addIncome = z.object({
 
 
 
-
+//Main Function
 const IncomePage = () => {
 
   const [incomeCard,setIncomeCard] = useState<Income[]>([])
@@ -124,7 +124,7 @@ const IncomePage = () => {
     }).catch( error =>{
       console.log(error);
     })
-  }, [])
+  }, []);
   
   const form = useForm<z.infer<typeof addIncome>>({
     resolver : zodResolver(addIncome),
@@ -135,7 +135,7 @@ const IncomePage = () => {
         incomeSourceName: "",
         date: new Date()
     }
-  })
+  });
 
 
   
@@ -153,7 +153,7 @@ const IncomePage = () => {
         description: "There was a problem with your request.",
       })
     })
-  }
+  };
 
   const { toast } = useToast()
 
