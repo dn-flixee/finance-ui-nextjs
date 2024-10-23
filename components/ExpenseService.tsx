@@ -9,8 +9,7 @@ interface Expense {
     accountName: string;
     expenseSourceName: string;
 }
-
-const EXPENSE_API_BASE_URL = "http://raspi.dn:8082/api/v1/expense";
+const EXPENSE_API_BASE_URL = "http://localhost:8082/api/v1/expense";
 
 class ExpenseService {
 
@@ -23,6 +22,10 @@ class ExpenseService {
 
     getExpense = async () => {
         return axios.get(EXPENSE_API_BASE_URL)
+    }
+
+    getExpenseFromLastYear = async () => {
+        return axios.get(`${EXPENSE_API_BASE_URL}/last-year`)
     }
     fetchExpenseTotalById = async (expenseSourceId:number) => {
         return axios.get(`${EXPENSE_API_BASE_URL}/${expenseSourceId}/total`);

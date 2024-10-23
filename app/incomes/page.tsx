@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
 import { CalendarIcon, ChevronDown } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 
 interface Income {
@@ -40,7 +41,7 @@ interface Income {
   }
   
   interface IncomeSource {
-    incomeSource: number;
+    incomeSourceId: number;
     name: string;
     goal: number;
   }
@@ -52,6 +53,7 @@ interface IncomeSheetProps {
   onClose: () => void;
   incomeToEdit: Income | null;
 }
+
 
 function IncomeSheet({ incomeSourceData, accountData, isOpen, onClose, incomeToEdit }: IncomeSheetProps) {
     
@@ -89,24 +91,58 @@ function IncomeSheet({ incomeSourceData, accountData, isOpen, onClose, incomeToE
     resolver : zodResolver(addIncome),
   })
 
-  function handleSubmit(values: z.infer<typeof addIncome>) {
+  function handleSubmit(values: z.infer<typeof addIncome>,) {
     console.log("save button press")
-    IncomeService.saveIncome(values).then(Response => {
+
+    if(incomeToEdit){
+        IncomeService.updateIncome(incomeToEdit.incomeId,values).then(Response => {
+            console.log(Response)
+            toast({
+              description: "Your Input has been saved",
+            })
+          }).catch(error => {
+            console.log(error)
+            toast({
+                variant: "destructive",
+                duration:5000,
+              title: "Uh oh! Something went wrong.",
+              description: "There was a problem with your request.",
+            })
+          })
+    }else{
+        IncomeService.saveIncome(values).then(Response => {
+            console.log(Response)
+            toast({
+              description: "Your Input has been saved",
+            })
+          }).catch(error => {
+            console.log(error)
+            toast({
+              title: "Uh oh! Something went wrong.",
+              description: "There was a problem with your request.",
+            })
+          })
+    }
+    
+  }
+
+  const deleteIncome = () =>{
+    IncomeService.deleteIncome(incomeToEdit.incomeId)
+    .then(Response => {
       console.log(Response)
       toast({
-        description: "Your Input has been saved",
+        description: "Income has been deleted",
       })
-    }).catch(error => {
+    })          
+    .catch(error =>{
       console.log(error)
       toast({
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with your request.",
       })
     })
-  };
-
-  const { toast } = useToast()
-
+}
+const { toast } = useToast()
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
@@ -231,6 +267,27 @@ function IncomeSheet({ incomeSourceData, accountData, isOpen, onClose, incomeToE
                             )}
                           />
                          <SheetFooter>
+
+                        {/* Added conditional statement for delete to appear only on edit income sheet */}
+
+                         {incomeToEdit?<AlertDialog>
+                          <AlertDialogTrigger>
+                          <Button className='mt-2' variant="destructive" type="button">Delete</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your account
+                                and remove your data from our servers.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={deleteIncome}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>:null}
                           <Button type='submit' className='mt-2'
                             form='income-form'
                             >Submit</Button>
@@ -245,47 +302,163 @@ function IncomeSheet({ incomeSourceData, accountData, isOpen, onClose, incomeToE
 interface IncomeSourceSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  sourceToEdit: IncomeSource | null;
+  incomeSourceToEdit: IncomeSource | null;
 }
 
-function IncomeSourceSheet({ isOpen, onClose, sourceToEdit }: IncomeSourceSheetProps) {
-  const [name, setName] = useState(sourceToEdit ? sourceToEdit.name : '')
-  const [goal, setGoal] = useState(sourceToEdit ? sourceToEdit.goal.toString() : '')
+function IncomeSourceSheet({ isOpen, onClose, incomeSourceToEdit }: IncomeSourceSheetProps) {
 
   useEffect(() => {
-    if (sourceToEdit) {
-        setName(sourceToEdit.name)
-        setGoal(sourceToEdit.goal.toString())
+    if (incomeSourceToEdit) {
+        form.setValue("name", incomeSourceToEdit.name);
+        form.setValue("goal", incomeSourceToEdit.goal);
     } else {
-      setName('')
-      setGoal('')
+        form.setValue("name", "");
+        form.setValue("goal", 0);
+        
     }
-  }, [sourceToEdit])
+  }, [incomeSourceToEdit])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle form submission here
-    console.log({ name, goal })
-    onClose()
-  }
+  
+  const addIncomeSource = z.object({
+    name: z.string().min(1).max(255),
+    goal: z.coerce.number().positive()
+  })
 
+  function handleSubmit(values: z.infer<typeof addIncomeSource>) {
+    
+    if(incomeSourceToEdit){
+        console.log("save button press")
+        IncomeSourceService.updateIncomeSource(incomeSourceToEdit.incomeSourceId,values).then(Response => {
+        console.log(Response)
+        toast({
+            description: "Your Input has been updated",
+        })
+        }).catch(error => {
+        console.log(error)
+        toast({
+            title: "Uh oh! Something went wrong.",
+            description: "There was a problem with your request.",
+            })
+        })
+        console.log(values)
+
+        
+        }else{
+        console.log("save button press")
+        IncomeSourceService.saveIncomeSource(values).then(Response => {
+        console.log(Response)
+        toast({
+            description: "Your Input has been saved",
+        })
+        }).catch(error => {
+        console.log(error)
+        toast({
+            title: "Uh oh! Something went wrong.",
+            description: "There was a problem with your request.",
+        })
+        })
+        console.log(values)
+        }
+
+    }
+
+  const form = useForm<z.infer<typeof addIncomeSource>>({
+    resolver : zodResolver(addIncomeSource)
+  })
+
+  const deleteIncomeSource = () =>{
+    IncomeSourceService.deleteIncomeSource(incomeSourceToEdit.incomeSourceId)
+    .then(Response => {
+      console.log(Response)
+      toast({
+        description: "Income Source has been deleted",
+      })
+    })
+    .catch(error =>{
+
+        if(error.response.data.message == "Database Error"){
+            console.log(error)
+            toast({
+                variant: "destructive",
+                duration:5000,
+                title: "Uh oh! Something went wrong.",
+                description: "Can't delete the income source because there are incomes connected to income source.",
+            })
+        }
+        else{
+            console.log(error)
+            toast({
+                variant: "destructive",
+                duration:5000,
+              title: "Uh oh! Something went wrong.",
+              description: "There was a problem with your request.",
+            })}
+      
+    })
+}
+
+  const { toast } = useToast()
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
         <SheetHeader>
-          <SheetTitle className="text-white">{sourceToEdit ? 'Edit Income Source' : 'Add Income Source'}</SheetTitle>
+          <SheetTitle className="text-white">{incomeSourceToEdit ? 'Edit Income Source' : 'Add Income Source'}</SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <Label htmlFor="source">Income Source</Label>
-            <Input id="source" value={name} onChange={(e) => setName(e.target.value)} className="bg-gray-800 text-white" />
-          </div>
-          <div>
-            <Label htmlFor="target">Target Amount</Label>
-            <Input id="target" type="number" value={goal} onChange={(e) => setGoal(e.target.value)} className="bg-gray-800 text-white" />
-          </div>
-          <Button type="submit" className="w-full">Submit</Button>
-        </form>
+        <Form {...form}>
+                          <form onSubmit={form.handleSubmit(handleSubmit)}>
+                            <FormField 
+                                control={form.control}  
+                                name="name" 
+                                render={({field})=>{
+                                  return (<FormItem>
+                                    <FormLabel>Name</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder='name' type='text' {...field}/>                   
+                                    </FormControl>
+                                    <FormMessage/>
+                                  </FormItem>);
+                            }}/>
+                            
+                            <FormField 
+                              control={form.control}  
+                              name="goal" 
+                              render={({field})=>{
+                                return (<FormItem>
+                                  <FormLabel>Goal</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder='goal' type='number' {...field}/>                   
+                                  </FormControl>
+                                  <FormMessage/>
+                                </FormItem>);
+                          }}/>
+
+                    <SheetFooter>
+                    <SheetClose asChild>
+                        {incomeSourceToEdit?<AlertDialog>
+                        <AlertDialogTrigger>
+                        <Button className='mt-2' variant="destructive" type='button'>Delete</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete your account
+                              and remove your data from our servers.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={deleteIncomeSource}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>:null}
+
+                        </SheetClose>
+                    
+                            <Button type='submit' className='mt-2'>Submit</Button>
+                          </SheetFooter>
+                          </form>
+                      </Form>
       </SheetContent>
     </Sheet>
   )
@@ -302,7 +475,7 @@ export default function Component() {
     const [selectedIncome, setSelectedIncome] = useState<Income | null>(null)
     const [isIncomeSourceSheetOpen, setIsIncomeSourceSheetOpen] = useState(false)
     const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null)
-
+    const { toast } = useToast()
   useEffect(() => {
     IncomeService.getIncome()
     .then((Response) => {
@@ -310,6 +483,12 @@ export default function Component() {
       setIncomeData(Response.data)
     }).catch(error => {
       console.log(error)
+      toast({
+        variant: "destructive",
+        duration:5000,
+      title: "Uh oh! Something went wrong.",
+      description: "There was a problem with fetching income data.",
+      })
     })
 
     IncomeSourceService.getIncomeSource()
@@ -318,7 +497,13 @@ export default function Component() {
       console.log(Response.data)
       setIncomeSourceData(Response.data)
     }).catch( error =>{
-      console.log(error);
+      console.log(error)
+      toast({
+        variant: "destructive",
+        duration:5000,
+      title: "Uh oh! Something went wrong.",
+      description: "There was a problem with fetching income source data.",
+      })
     })
 
     AccountService.getAccount()
@@ -328,6 +513,12 @@ export default function Component() {
       setAccountData(Response.data)
     }).catch( error =>{
       console.log(error);
+      toast({
+        variant: "destructive",
+        duration:5000,
+      title: "Uh oh! Something went wrong.",
+      description: "There was a problem with fetching account data.",
+      })
     })
   }, []);
 
@@ -535,7 +726,7 @@ export default function Component() {
             </div>
             <div className="space-y-4">
               {filteredIncomeSource.map((source) => (
-                <div key={source.incomeSource} className="bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600" onClick={() => openIncomeSourceSheet(source)}>
+                <div key={source.incomeSourceId} className="bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600" onClick={() => openIncomeSourceSheet(source)}>
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center space-x-2">
                       <span>{source.name}</span>
@@ -551,7 +742,7 @@ export default function Component() {
         </Card>
       </main>
       <IncomeSheet incomeSourceData={incomeSourceData} accountData={accountData} isOpen={isIncomeSheetOpen} onClose={closeIncomeSheet} incomeToEdit={selectedIncome} />
-      <IncomeSourceSheet isOpen={isIncomeSourceSheetOpen} onClose={closeIncomeSourceSheet} sourceToEdit={selectedIncomeSource} />
+      <IncomeSourceSheet isOpen={isIncomeSourceSheetOpen} onClose={closeIncomeSourceSheet} incomeSourceToEdit={selectedIncomeSource} />
     </div>
   )
 }
