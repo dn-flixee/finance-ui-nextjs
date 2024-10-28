@@ -1,22 +1,42 @@
 import Image from "next/image"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
+import { ChevronDown } from "lucide-react"
 
-const NavBar = () => {
+function NavBar() {
   return (
-    <div className=" bg-green-500 flex flex-row">
-  <div className="flex-1 p-2">
-    <a className="normal-case text-xl"><Image src="/logo.png" alt="log" width={30} height={30}/></a>
-  </div>
-  <div className="flex flex-row p-2">
-        <div className="avatar">
-        <div className="w-8 rounded-full">
-          <Image src="/user_icon.png" alt="user logo" width={30} height={30} />
+    <header className="bg-green-700 p-4 flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <svg
+            className="h-6 w-6 text-white"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+            <path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9" />
+            <path d="M12 3v6" />
+          </svg>
+          <h1 className="text-xl font-bold">HOME</h1>
         </div>
+        <div className="flex items-center space-x-2">
+          <Avatar>
+            <AvatarImage src="/placeholder.svg?height=32&width=32" alt="@username" />
+            <AvatarFallback>UN</AvatarFallback>
+          </Avatar>
+          <span>UserName</span>
+          <ChevronDown className="h-4 w-4" />
         </div>
-          flixee
-          <svg className="fill-current " xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
-  </div>
-  </div>
+      </header>
   )
 }
-
 export default NavBar

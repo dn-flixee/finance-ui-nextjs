@@ -1,17 +1,27 @@
 import axios from "axios";
 
 interface Income {
+    incomeId: number;
     name: string;
     amount: number;
     date: Date;
     accountName: string;
     incomeSourceName: string;
   }
+
+  interface NewIncome {
+    name: string;
+    amount: number;
+    date: Date;
+    accountName: string;
+    incomeSourceName: string;
+  }
+  
 const INCOME_API_BASE_URL = "http://localhost:8082/api/v1/income";
 
 class IncomeService{
 
-    saveIncome = async (income: Income ) => {
+    saveIncome = async (income: NewIncome ) => {
         return axios.post(INCOME_API_BASE_URL,income)
     }
     updateIncome = async (incomeid:number, income:Income) => {
@@ -19,11 +29,20 @@ class IncomeService{
     }
 
     getIncome = async () => {
-        return axios.get(INCOME_API_BASE_URL)
+        const res = await axios.get(INCOME_API_BASE_URL)
+        const income:Income[] = res.data.map( (income:Income) => {
+            return {
+                incomeId: income.incomeId,
+                name: income.name,
+                amount: income.amount,
+                date: new Date(income.date),
+                accountName: income.accountName,
+                incomeSourceName: income.incomeSourceName
+            }
+          })
+        return income;
     }
-    fetchIncomeTotalById = async (incomeSourceId:number) => {
-        return axios.get(`${INCOME_API_BASE_URL}/${incomeSourceId}/total`);
-    }
+
     deleteIncome = async (incomeId:number) => {
         return axios.delete(`${INCOME_API_BASE_URL}/${incomeId}` )
     }

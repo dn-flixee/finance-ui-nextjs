@@ -1,148 +1,132 @@
-import React, { useState } from 'react'
-import IncomeService from '../../components/IncomeService'
-import Image from 'next/image'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetClose,
-  SheetFooter,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
-
-import { format, set } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
- 
-import { cn } from "@/lib/utils"
+"use client"
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import ExpenseService from '@/components/ExpenseService'
 import { z } from 'zod'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
+import { format } from "date-fns"
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Input } from '@/components/ui/input';
-import { ToastAction } from '@/components/ui/toast';
-import { useToast } from '@/components/ui/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover'
+import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/use-toast'
+import { CalendarIcon, ChevronDown } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
-interface Income {
-  incomeId: number;
-  name: string;
-  amount: number;
-  date: Date;
-  accountName: string;
-  incomeSourceName: string;
-}
 
-interface Account {
-  accountId: number;
-  name: string;
-  startingBalance: number;
-  type: number;
-}
-
-interface IncomeSource {
-  incomeSource: number;
-  name: string;
-  goal: number;
-}
-interface IncomeCardProps {
-  income: Income;
-  account: Account[];
-  incomeSource: IncomeSource[];
-}
-
-const myDateSchema = z.date({
-  required_error: "Please select a date and time",
-  invalid_type_error: "That's not a date!",
-});
-
-const updateIncome = z.object({
-  amount: z.number().positive(),
-  name: z.string().min(1).max(255),
-  accountName: z.string().min(1).max(255),
-  incomeSourceName: z.string().min(1).max(255),
-  date: myDateSchema
-})
-
-const IncomeCard: React.FC<IncomeCardProps> = ({
-  income,
-  account,
-  incomeSource
-}) => {
-
-  const { toast } = useToast()
-
-  const form = useForm<z.infer<typeof updateIncome>>({
-    resolver : zodResolver(updateIncome),
-    defaultValues: {
-        amount: income.amount,
-        name: income.name,
-        accountName: income.accountName,
-        incomeSourceName: income.incomeSourceName,
-        date: income.date
-    }
-  })
-
-  const handleSubmit = (value: z.infer<typeof updateIncome>) => {
-    console.log("Update button press")
-    IncomeService.updateIncome(income.incomeId,value).then(Response => {
-      console.log(Response)
-      toast({
-        description: "Your Input has been saved",
-      })
-    }).catch(error => {
-      console.log(error)
-      toast({
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-    })
+interface Expense {
+    expenseId: number;
+    name: string;
+    amount: number;
+    date: Date;
+    accountName: string;
+    expenseSourceName: string;
+  }
+  
+  interface Account {
+    accountId: number;
+    name: string;
+    startingBalance: number;
+    type: number;
+  }
+  
+  interface ExpenseSource {
+    expenseSourceId: number;
+    name: string;
+    goal: number;
   }
 
-  const deleteIncome = () =>{
-    IncomeService.deleteIncome(income.incomeId)
+interface ExpenseSheetProps {
+  expenseSourceData: ExpenseSource[];
+  accountData: Account[];
+  isOpen: boolean;
+  onClose: () => void;
+  expenseToEdit: Expense | null;
+}
+
+
+function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expenseToEdit }: ExpenseSheetProps) {
+    
+  useEffect(() => {
+
+    if (expenseToEdit) {
+        form.setValue("amount", expenseToEdit.amount);
+        form.setValue("name", expenseToEdit.name);
+        form.setValue("accountName", expenseToEdit.accountName);
+        form.setValue("expenseSourceName", expenseToEdit.expenseSourceName);
+        form.setValue("date", expenseToEdit.date);
+    } else {
+        form.setValue("amount", 0);
+        form.setValue("name", "");
+        form.setValue("accountName", "");
+        form.setValue("expenseSourceName","");
+        form.setValue("date", new Date());
+    }
+  }, [expenseToEdit])
+
+  const addExpense = z.object({
+    amount: z.coerce.number().positive(),
+    name: z.string().min(1).max(255),
+    accountName: z.string().min(1).max(255),
+    expenseSourceName: z.string().min(1).max(255),
+    date: z.date({
+        required_error: "Please select a date and time",
+        invalid_type_error: "That's not a date!",
+      })
+  })
+
+  const form = useForm<z.infer<typeof addExpense>>({
+    resolver : zodResolver(addExpense),
+  })
+
+  function handleSubmit(values: z.infer<typeof addExpense>,) {
+    console.log("save button press")
+
+    if(expenseToEdit){
+        ExpenseService.updateExpense(expenseToEdit.expenseId,values).then(Response => {
+            console.log(Response)
+            toast({
+              description: "Your Input has been saved",
+            })
+          }).catch(error => {
+            console.log(error)
+            toast({
+                variant: "destructive",
+                duration:5000,
+              title: "Uh oh! Something went wrong.",
+              description: "There was a problem with your request.",
+            })
+          })
+    }else{
+        ExpenseService.saveExpense(values).then(Response => {
+            console.log(Response)
+            toast({
+              description: "Your Input has been saved",
+            })
+          }).catch(error => {
+            console.log(error)
+            toast({
+              title: "Uh oh! Something went wrong.",
+              description: "There was a problem with your request.",
+            })
+          })
+    }
+    
+  }
+
+  const deleteExpense = () =>{
+    if(expenseToEdit)
+    ExpenseService.deleteExpense(expenseToEdit.expenseId)
     .then(Response => {
       console.log(Response)
       toast({
-        description: "Income has been deleted",
+        description: "Expense has been deleted",
       })
-    })
+    })          
     .catch(error =>{
       console.log(error)
       toast({
@@ -151,38 +135,15 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
       })
     })
 }
-  
+const { toast } = useToast()
   return (
-    <>
-    
-    <Sheet>
-  <SheetTrigger className='w-full'>
-    
-  <div className='flex flex-row justify-between rounded-md h-10 p-2 mb-2'>
-        <div className='flex basis-3/5'>
-            <Image src="/income_icon.png" width={25} height={25} alt="income icon"/>
-            <p className='font-semibold p-1'>{income.name}</p>
-        </div>
-        <div className='p-1 flex basis-1/5 justify-start'>
-          <p className='font-semibold'>₹{income.amount}</p>
-        </div>
-        <div className='flex  basis-1/5 justify-end'>
-            
-            <div className='pr-1'><img src="/bank_icon.png" width={25} height={25}></img></div>
-            <div className='p-1'><p className='font-semibold'>{income.accountName}</p></div>
-        </div>
-    </div>
-
-  </SheetTrigger>
-  <SheetContent>
-    <SheetHeader>
-      <SheetTitle>Edit Income</SheetTitle>
-      <SheetDescription>
-      </SheetDescription>
-    </SheetHeader>
-
-    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(handleSubmit)}>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="bg-gray-900 text-white">
+        <SheetHeader>
+          <SheetTitle className="text-white">{expenseToEdit ? 'Edit Expense' : 'Add Expense'}</SheetTitle>
+        </SheetHeader>
+        <Form {...form}>
+                        <form id="expense-form" onSubmit={form.handleSubmit(handleSubmit)}>
                           <FormField 
                               control={form.control}  
                               name="name" 
@@ -199,7 +160,7 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
                             <FormField 
                               control={form.control}  
                               name="amount" 
-                              render={({field})=>{
+                              render={({ field})=>{
                                 return (<FormItem>
                                   <FormLabel>Amount</FormLabel>
                                   <FormControl>
@@ -219,12 +180,11 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
                                 <Select onValueChange={field.onChange} >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={income.accountName} />
+                                      <SelectValue placeholder={expenseToEdit? expenseToEdit.accountName : "Account"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    
-                                    {account && account.map((option,index) => (
+                                    {accountData && accountData.map((option,index) => (
                                       <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -236,18 +196,18 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
 
                           <FormField
                                     control={form.control}
-                                    name="incomeSourceName"
+                                    name="expenseSourceName"
                                     render={({ field }) => (
                                       <FormItem>
-                                        <FormLabel>Income Source</FormLabel>
+                                        <FormLabel>Expense Source</FormLabel>
                                         <Select onValueChange={field.onChange} >
                                           <FormControl>
                                             <SelectTrigger>
-                                              <SelectValue placeholder={income.incomeSourceName} />
+                                              <SelectValue placeholder={expenseToEdit? expenseToEdit.expenseSourceName:"Expense Source"} />
                                             </SelectTrigger>
                                           </FormControl>
                                           <SelectContent>
-                                          {incomeSource && incomeSource.map((option,index) =>(
+                                          {expenseSourceData && expenseSourceData.map((option,index) =>(
                                         <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                       ))}
                                           </SelectContent>
@@ -287,7 +247,7 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
                                     <Calendar
                                       mode="single"
                                       selected={field.value}
-                                      onSelect={field.onChange}
+                                      onSelect={field.onChange} 
                                       disabled={(date) =>
                                         date > new Date() || date < new Date("1900-01-01")
                                       }
@@ -300,9 +260,10 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
                             )}
                           />
                          <SheetFooter>
-                         <SheetClose asChild>
 
-                         <AlertDialog>
+                        {/* Added conditional statement for delete to appear only on edit expense sheet */}
+
+                         {expenseToEdit?<AlertDialog>
                           <AlertDialogTrigger>
                           <Button className='mt-2' variant="destructive" type="button">Delete</Button>
                           </AlertDialogTrigger>
@@ -316,24 +277,18 @@ const IncomeCard: React.FC<IncomeCardProps> = ({
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={deleteIncome}>Continue</AlertDialogAction>
+                              <AlertDialogAction onClick={deleteExpense}>Continue</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
-                        </AlertDialog>
-
-                         </SheetClose>
-                          <Button type='submit' className='mt-2'>Update</Button>
-                          
+                        </AlertDialog>:null}
+                          <Button type='submit' className='mt-2'
+                            form='expense-form'
+                            >Submit</Button>
                             </SheetFooter>
                         </form>
                     </Form>
-
-
-  </SheetContent>
-</Sheet>
-</>
-    
+      </SheetContent>
+    </Sheet>
   )
 }
-
-export default IncomeCard
+export default ExpenseSheet;
