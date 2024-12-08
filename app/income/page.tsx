@@ -15,6 +15,9 @@ import IncomeSourceSheet from './IncomeSourceSheet'
 import { date } from 'zod'
 import NavBar from '@/components/NavBar'
 
+import { addIncome,updateIncome,removeIncome, selectIncomes, fetchIncomes } from '@/lib/features/income/incomeSlice'
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+
 interface Income {
     incomeId: number;
     name: string;
@@ -37,8 +40,11 @@ interface Account {
 }
   
 export default function Component() {
+
+  const incomes = useAppSelector(selectIncomes)
+  const dispatch = useAppDispatch()
+
     const date = new Date();
-    const [incomeData,setIncomeData] = useState<Income[]>([])
     const [accountData,setAccountData] = useState<Account[]>([])
     const [incomeSourceData,setIncomeSourceData] = useState<IncomeSource[]>([])
     const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
@@ -49,19 +55,26 @@ export default function Component() {
     const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null)
     const { toast } = useToast()
   useEffect(() => {
-    IncomeService.getIncome()
-    .then((Response) => {
-      console.log(Response)
-      setIncomeData(Response)
-    }).catch(error => {
-      console.log(error)
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching income data.",
-      })
-    })
+
+    if(incomes.status === 'idle'){
+      dispatch(fetchIncomes())
+    }
+    console.log(incomes.status)
+    console.log(incomes.incomes)
+
+    // IncomeService.getIncome()
+    // .then((Response) => {
+    //   console.log(Response)
+    //   setIncomeData(Response)
+    // }).catch(error => {
+    //   console.log(error)
+    //   toast({
+    //     variant: "destructive",
+    //     duration:5000,
+    //   title: "Uh oh! Something went wrong.",
+    //   description: "There was a problem with fetching income data.",
+    //   })
+    // })
 
     IncomeSourceService.getIncomeSource()
     .then((Response)=>{
@@ -92,7 +105,7 @@ export default function Component() {
       description: "There was a problem with fetching account data.",
       })
     })
-  }, []);
+  }, [dispatch,incomes.status]);
 
   const openIncomeSheet = (income: Income | null = null) => {
     setSelectedIncome(income)
@@ -114,7 +127,7 @@ export default function Component() {
     setSelectedIncomeSource(null)
   }
 
-  const filteredIncome = incomeData.filter(income => {
+  const filteredIncome = incomes.incomes.filter(income => {
     const incomeDate = new Date(income.date)
     return incomeDate.getMonth() + 1 === parseInt(selectedMonth) && incomeDate.getFullYear() === parseInt(selectedYear)
   })
@@ -132,7 +145,7 @@ export default function Component() {
 
   const years: number[] = Array.from(
     new Set(
-        incomeData.map(income => {
+        incomes.incomes.map(income => {
             const date = new Date(income.date); // Convert to Date object
             return date.getFullYear(); // Extract the year
         })
@@ -301,3 +314,4 @@ export default function Component() {
     </>
   )
 }
+

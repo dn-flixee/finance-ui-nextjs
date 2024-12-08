@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 import NavBar from '../components/NavBar';
 import chat from '../components/Chat'
+import StoreProvider from './StoreProvider';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,8 +23,9 @@ export default function RootLayout({ children }) {
             enableSystem
             disableTransitionOnChange
           >
-            
+        <StoreProvider>
         {children}
+        </StoreProvider>
       <Toaster />
       </ThemeProvider>
       </body>

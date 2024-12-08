@@ -17,7 +17,7 @@ interface NewExpense {
     accountName: string;
     expenseSourceName: string;
 }
-const EXPENSE_API_BASE_URL = "http://localhost:8082/api/v1/expense";
+const EXPENSE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/expense";
 
 class ExpenseService {
 

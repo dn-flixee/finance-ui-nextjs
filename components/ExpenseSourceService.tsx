@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const EXPENSE_SOURCE_API_BASE_URL = "http://localhost:8082/api/v1/expenseSource";
+const EXPENSE_SOURCE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/expenseSource";
 
 interface ExpenseSource {
   name: string;

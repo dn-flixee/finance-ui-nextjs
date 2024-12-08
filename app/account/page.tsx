@@ -53,7 +53,7 @@ export default function Component() {
       description: "There was a problem with fetching expense data.",
       })
     })
-  })
+  },[])
 
   const openAccountSheet = (account: Account | null = null) => {
     setSelectedAccount(account)
@@ -183,7 +183,7 @@ export default function Component() {
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="font-semibold">{account.name}</span>
                   </div>
-                  <div className="text-xl font-bold">₹ {account.balance}</div>
+                  <div className="text-xl font-bold">₹ {account.startingBalance}</div>
                 </div>
               ))}
               <Button variant="outline" className="h-full flex items-center justify-center" onClick={openAccountSheet}>
@@ -194,9 +194,9 @@ export default function Component() {
         </Card>
       </main>
       <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={selectedAccount} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={selectedTransfer} />
-      <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={null} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={null} />
+      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={selectedTransfer} accountData={accounts} />
+      {/* <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={null} />
+      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={null} /> */}
     </div>
   )
 

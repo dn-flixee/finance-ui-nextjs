@@ -16,8 +16,8 @@ interface Income {
     accountName: string;
     incomeSourceName: string;
   }
-  
-const INCOME_API_BASE_URL = "http://localhost:8082/api/v1/income";
+
+const INCOME_API_BASE_URL =  process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/income";
 
 class IncomeService{
 
