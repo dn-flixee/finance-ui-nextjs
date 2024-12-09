@@ -80,7 +80,7 @@ export const deleteIncome = createAppAsyncThunk(
 );
 
 export const incomeSlice = createSlice({
-    name: "income",
+    name: "incomes",
     initialState: intialState,
     reducers: {},
     extraReducers: (builder) => {
