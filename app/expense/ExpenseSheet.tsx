@@ -1,11 +1,10 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
-import ExpenseService from '@/components/ExpenseService'
 import { z } from 'zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
@@ -13,10 +12,10 @@ import { format } from "date-fns"
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover'
 import { cn } from '@/lib/utils'
-import { useToast } from '@/components/ui/use-toast'
-import { CalendarIcon, ChevronDown } from 'lucide-react'
+import { CalendarIcon } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-
+import { useAppDispatch } from '@/lib/hooks'
+import { deleteExpense, saveExpense, updateExpense } from '@/lib/features/expense/expenseSlice'
 
 interface Expense {
     expenseId: number;
@@ -37,7 +36,7 @@ interface Expense {
   interface ExpenseSource {
     expenseSourceId: number;
     name: string;
-    goal: number;
+    budget: number;
   }
 
 interface ExpenseSheetProps {
@@ -48,9 +47,10 @@ interface ExpenseSheetProps {
   expenseToEdit: Expense | null;
 }
 
-
 function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expenseToEdit }: ExpenseSheetProps) {
-    
+
+  const dispatch = useAppDispatch();
+  
   useEffect(() => {
 
     if (expenseToEdit) {
@@ -87,55 +87,24 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
     console.log("save button press")
 
     if(expenseToEdit){
-        ExpenseService.updateExpense(expenseToEdit.expenseId,values).then(Response => {
-            console.log(Response)
-            toast({
-              description: "Your Input has been saved",
-            })
-          }).catch(error => {
-            console.log(error)
-            toast({
-                variant: "destructive",
-                duration:5000,
-              title: "Uh oh! Something went wrong.",
-              description: "There was a problem with your request.",
-            })
-          })
+      dispatch(updateExpense({
+        expenseId: expenseToEdit.expenseId,
+        name: values.name,
+        amount: values.amount,
+        date: values.date,
+        accountName: values.accountName,
+        expenseSourceName: values.expenseSourceName,
+      }))
     }else{
-        ExpenseService.saveExpense(values).then(Response => {
-            console.log(Response)
-            toast({
-              description: "Your Input has been saved",
-            })
-          }).catch(error => {
-            console.log(error)
-            toast({
-              title: "Uh oh! Something went wrong.",
-              description: "There was a problem with your request.",
-            })
-          })
+        dispatch(saveExpense(values));
     }
-    
   }
 
-  const deleteExpense = () =>{
-    if(expenseToEdit)
-    ExpenseService.deleteExpense(expenseToEdit.expenseId)
-    .then(Response => {
-      console.log(Response)
-      toast({
-        description: "Expense has been deleted",
-      })
-    })          
-    .catch(error =>{
-      console.log(error)
-      toast({
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-    })
+  const removeExpense = () =>{
+    if(expenseToEdit){
+      dispatch(deleteExpense(expenseToEdit.expenseId))
+    }
 }
-const { toast } = useToast()
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
@@ -277,7 +246,7 @@ const { toast } = useToast()
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={deleteExpense}>Continue</AlertDialogAction>
+                              <AlertDialogAction onClick={removeExpense}>Continue</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>:null}

@@ -7,7 +7,8 @@ import { toast } from "@/components/ui/use-toast";
 export interface Account {
     accountId: number;
     name: string;
-    balance: number;
+    startingBalance: number;
+    type: number;
   }
 interface AccountState {
     accounts: Account[];
@@ -17,7 +18,8 @@ interface AccountState {
 
 interface NewAccount {
     name: string;
-    balance: number;
+    startingBalance: number;
+    type: number;
 }
 
 const intialState: AccountState = {
@@ -59,8 +61,8 @@ export const updateAccount = createAppAsyncThunk(
 export const deleteAccount = createAppAsyncThunk(
     "account/deleteAccount",
     async (accountid: number) => {
-        const res = await axios.delete(`${ACCOUNT_API_BASE_URL}/${accountid}`);
-        return res;
+        await axios.delete(`${ACCOUNT_API_BASE_URL}/${accountid}`);
+        return accountid;
     }
 );
 
@@ -92,7 +94,8 @@ export const accountSlice = createSlice({
             state.accounts.push({
                 accountId: action.payload.accountId,
                 name: action.payload.name,
-                balance : action.payload.balance
+                startingBalance : action.payload.balance,
+                type: action.payload.type
             });
             toast({
                 description: "Account saved successfully!",
@@ -114,13 +117,17 @@ export const accountSlice = createSlice({
                         return {
                             accountId: action.payload.accountId,
                             name: action.payload.name,
-                            balance : action.payload.balance
+                            startingBalance : action.payload.balance,
+                            type: action.payload.type
+
                         }
                     } else {
                         return {
                             accountId: account.accountId,
                             name: account.name,
-                            balance : account.balance
+                            startingBalance : account.startingBalance,
+                            type: action.payload.type
+
                         }
 
                     }
@@ -149,12 +156,21 @@ export const accountSlice = createSlice({
         });
         builder.addCase(deleteAccount.rejected, (state, action) => {
             console.log(action.error.message)
+            if(action.error.message === "Request failed with status code 400"){
+                toast({
+                    variant: "destructive",
+                    duration:5000,
+                    title: "Uh oh! Something went wrong.",
+                    description: "Can't delete the account because there are incomes & expenses connected to this account.",
+                })
+            }
+            else{
                 toast({
                     variant: "destructive",
                     duration:5000,
                   title: "Uh oh! Something went wrong.",
                   description: "There was a problem with your request.",
-                })
+                })}
         });
     },
 });

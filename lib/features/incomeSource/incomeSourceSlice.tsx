@@ -60,7 +60,7 @@ export const deleteIncomeSource = createAppAsyncThunk(
     "incomeSource/deleteIncomeSource",
     async (incomeSourceid: number) => {
         const res = await axios.delete(`${INCOME_SOURCE_API_BASE_URL}/${incomeSourceid}`);
-        return res;
+        return incomeSourceid;
     }
 );
 
@@ -149,7 +149,7 @@ export const incomeSourceSlice = createSlice({
         });
         builder.addCase(deleteIncomeSource.rejected, (state, action) => {
             console.log(action.error.message)
-            if(action.error.message === "Database Error"){
+            if(action.error.message === "Request failed with status code 400"){
                 toast({
                     variant: "destructive",
                     duration:5000,

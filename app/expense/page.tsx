@@ -3,17 +3,15 @@ import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import ExpenseService from '@/components/ExpenseService'
-import ExpenseSourceService from '@/components/ExpenseSourceService'
-import AccountService from '@/components/AccountService'
 import { useToast } from '@/components/ui/use-toast'
-import { CalendarIcon, ChevronDown } from 'lucide-react'
 import ExpenseSheet from './ExpenseSheet'
 import ExpenseSourceSheet from './ExpenseSourceSheet'
-import { date } from 'zod'
 import NavBar from '@/components/NavBar'
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { fetchExpenses, selectExpenses } from '@/lib/features/expense/expenseSlice'
+import { fetchExpenseSources, selectExpenseSources } from '@/lib/features/expenseSource/expenseSourceSlice'
+import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
 
 interface Expense {
     expenseId: number;
@@ -37,63 +35,49 @@ interface Account {
 }
   
 export default function Component() {
+
+    const expenses = useAppSelector(selectExpenses)
+    const expenseSources = useAppSelector(selectExpenseSources)
+    const accounts = useAppSelector(selectAccounts)
+    const dispatch = useAppDispatch()
+
     const date = new Date();
-    const [expenseData,setExpenseData] = useState<Expense[]>([])
-    const [accountData,setAccountData] = useState<Account[]>([])
-    const [expenseSourceData,setExpenseSourceData] = useState<ExpenseSource[]>([])
     const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
     const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
     const [isExpenseSheetOpen, setIsExpenseSheetOpen] = useState(false)
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
     const [isExpenseSourceSheetOpen, setIsExpenseSourceSheetOpen] = useState(false)
     const [selectedExpenseSource, setSelectedExpenseSource] = useState<ExpenseSource | null>(null)
-    const { toast } = useToast()
     
   useEffect(() => {
-    ExpenseService.getExpense()
-    .then((Response) => {
-      console.log(Response)
-      setExpenseData(Response)
-    }).catch(error => {
-      console.log(error)
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching expense data.",
+    if(expenses.status === 'idle'){
+      dispatch(fetchExpenses()).then(
+        (Response)=>{
+          console.log("fetchExpenses")
+          console.log(Response.payload)
       })
-    })
+    }
+  }, [dispatch,expenses.status]);
 
-    ExpenseSourceService.getExpenseSource()
-    .then((Response)=>{
-      console.log("source name")
-      console.log(Response.data)
-      setExpenseSourceData(Response.data)
-    }).catch( error =>{
-      console.log(error)
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching expense source data.",
+  useEffect(() => {
+    if(expenseSources.status === 'idle'){
+      dispatch(fetchExpenseSources()).then(
+        (Response)=>{
+          console.log("fetchExpenseSources")
+          console.log(Response.payload)
       })
-    })
+    }
+  }, [dispatch,expenseSources.status]);
 
-    AccountService.getAccount()
-    .then((Response)=>{
-      console.log("account name")
-      console.log(Response.data)
-      setAccountData(Response.data)
-    }).catch( error =>{
-      console.log(error);
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching account data.",
+  useEffect(() => {
+    if(accounts.status === 'idle'){
+      dispatch(fetchAccounts()).then(
+        (Response)=>{
+          console.log("fetchAccounts")
+          console.log(Response.payload)
       })
-    })
-  }, []);
+    }
+  }, [dispatch,accounts.status]);
 
   const openExpenseSheet = (expense: Expense | null = null) => {
     setSelectedExpense(expense)
@@ -115,12 +99,12 @@ export default function Component() {
     setSelectedExpenseSource(null)
   }
 
-  const filteredExpense = expenseData.filter(expense => {
+  const filteredExpense = expenses.expenses.filter(expense => {
     const expenseDate = new Date(expense.date)
-    return expenseDate.getMonth() + 1 === parseInt(selectedMonth) && expenseDate.getFullYear() === parseInt(selectedYear)
+    return expenseDate.getMonth() + 1 === selectedMonth && expenseDate.getFullYear() === selectedYear
   })
 
-  const filteredExpenseSource = expenseSourceData.map(source => {
+  const filteredExpenseSource = expenseSources.expenseSources.map(source => {
     const totalExpense = filteredExpense
       .filter(expense => expense.expenseSourceName === source.name)
       .reduce((sum, expense) => sum + expense.amount, 0)
@@ -130,10 +114,13 @@ export default function Component() {
       percentage: Math.round((totalExpense / source.budget) * 100)
     }
   })
+  console.log("--------------------")
+  console.log(filteredExpenseSource)
+  console.log("--------------------")
 
   const years: number[] = Array.from(
     new Set(
-        expenseData.map(expense => {
+        expenses.expenses.map(expense => {
             const date = new Date(expense.date); // Convert to Date object
             return date.getFullYear(); // Extract the year
         })
@@ -223,7 +210,8 @@ export default function Component() {
                     <span className="text-red-500">{expense.accountName}</span>
                   </div>
                 </div>
-              ))}
+              ))
+              }
             </div>
           </CardContent>
         </Card>
@@ -296,7 +284,7 @@ export default function Component() {
           </CardContent>
         </Card>
       </main>
-      <ExpenseSheet expenseSourceData={expenseSourceData} accountData={accountData} isOpen={isExpenseSheetOpen} onClose={closeExpenseSheet} expenseToEdit={selectedExpense} />
+      <ExpenseSheet expenseSourceData={expenseSources.expenseSources} accountData={accounts.accounts} isOpen={isExpenseSheetOpen} onClose={closeExpenseSheet} expenseToEdit={selectedExpense} />
       <ExpenseSourceSheet isOpen={isExpenseSourceSheetOpen} onClose={closeExpenseSourceSheet} expenseSourceToEdit={selectedExpenseSource} />
     </div>
     </>

@@ -60,7 +60,7 @@ export const deleteExpenseSource = createAppAsyncThunk(
     "expenseSource/deleteExpenseSource",
     async (expenseSourceid: number) => {
         const res = await axios.delete(`${EXPENSE_SOURCE_API_BASE_URL}/${expenseSourceid}`);
-        return res;
+        return expenseSourceid;
     }
 );
 
@@ -149,7 +149,7 @@ export const expenseSourceSlice = createSlice({
         });
         builder.addCase(deleteExpenseSource.rejected, (state, action) => {
             console.log(action.error.message)
-            if(action.error.message === "Database Error"){
+            if(action.error.message === "Request failed with status code 400"){
                 toast({
                     variant: "destructive",
                     duration:5000,
