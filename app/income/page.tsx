@@ -15,8 +15,9 @@ import IncomeSourceSheet from './IncomeSourceSheet'
 import { date } from 'zod'
 import NavBar from '@/components/NavBar'
 
-import { addIncome,updateIncome,removeIncome, selectIncomes, fetchIncomes } from '@/lib/features/income/incomeSlice'
+import { selectIncomes, fetchIncomes,  } from '@/lib/features/income/incomeSlice'
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { fetchIncomeSources, selectIncomeSources } from '@/lib/features/incomeSource/incomeSourceSlice'
 
 interface Income {
     incomeId: number;
@@ -42,11 +43,11 @@ interface Account {
 export default function Component() {
 
   const incomes = useAppSelector(selectIncomes)
+  const incomeSources = useAppSelector(selectIncomeSources)
   const dispatch = useAppDispatch()
 
     const date = new Date();
     const [accountData,setAccountData] = useState<Account[]>([])
-    const [incomeSourceData,setIncomeSourceData] = useState<IncomeSource[]>([])
     const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
     const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
     const [isIncomeSheetOpen, setIsIncomeSheetOpen] = useState(false)
@@ -57,39 +58,12 @@ export default function Component() {
   useEffect(() => {
 
     if(incomes.status === 'idle'){
-      dispatch(fetchIncomes())
-    }
-    console.log(incomes.status)
-    console.log(incomes.incomes)
-
-    // IncomeService.getIncome()
-    // .then((Response) => {
-    //   console.log(Response)
-    //   setIncomeData(Response)
-    // }).catch(error => {
-    //   console.log(error)
-    //   toast({
-    //     variant: "destructive",
-    //     duration:5000,
-    //   title: "Uh oh! Something went wrong.",
-    //   description: "There was a problem with fetching income data.",
-    //   })
-    // })
-
-    IncomeSourceService.getIncomeSource()
-    .then((Response)=>{
-      console.log("source name")
-      console.log(Response.data)
-      setIncomeSourceData(Response.data)
-    }).catch( error =>{
-      console.log(error)
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching income source data.",
+      dispatch(fetchIncomes()).then(
+        (Response)=>{
+          console.log("fetchIncomes")
+          console.log(Response.payload)
       })
-    })
+    }
 
     AccountService.getAccount()
     .then((Response)=>{
@@ -106,6 +80,13 @@ export default function Component() {
       })
     })
   }, [dispatch,incomes.status]);
+
+  useEffect(()=>{
+    console.log('Use Effert')
+    if(incomeSources.status === 'idle'){
+      dispatch(fetchIncomeSources())
+    }
+  },[[dispatch,incomeSources.status]])
 
   const openIncomeSheet = (income: Income | null = null) => {
     setSelectedIncome(income)
@@ -132,7 +113,7 @@ export default function Component() {
     return incomeDate.getMonth() + 1 === parseInt(selectedMonth) && incomeDate.getFullYear() === parseInt(selectedYear)
   })
 
-  const filteredIncomeSource = incomeSourceData.map(source => {
+  const filteredIncomeSource = incomeSources.incomeSources.map(source => {
     const totalIncome = filteredIncome
       .filter(income => income.incomeSourceName === source.name)
       .reduce((sum, income) => sum + income.amount, 0)
@@ -308,7 +289,7 @@ export default function Component() {
           </CardContent>
         </Card>
       </main>
-      <IncomeSheet incomeSourceData={incomeSourceData} accountData={accountData} isOpen={isIncomeSheetOpen} onClose={closeIncomeSheet} incomeToEdit={selectedIncome} />
+      <IncomeSheet incomeSourceData={incomeSources.incomeSources} accountData={accountData} isOpen={isIncomeSheetOpen} onClose={closeIncomeSheet} incomeToEdit={selectedIncome} />
       <IncomeSourceSheet isOpen={isIncomeSourceSheetOpen} onClose={closeIncomeSourceSheet} incomeSourceToEdit={selectedIncomeSource} />
     </div>
     </>

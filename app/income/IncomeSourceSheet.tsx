@@ -3,13 +3,13 @@ import React, { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
-import IncomeSourceService from '@/components/IncomeSourceService'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useToast } from '@/components/ui/use-toast'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { deleteIncomeSource, saveIncomeSource, updateIncomeSource } from '@/lib/features/incomeSource/incomeSourceSlice'
+import { useAppDispatch } from '@/lib/hooks'
 
 interface IncomeSource {
     incomeSourceId: number;
@@ -25,6 +25,7 @@ interface IncomeSourceSheetProps {
 
 function IncomeSourceSheet({ isOpen, onClose, incomeSourceToEdit }: IncomeSourceSheetProps) {
 
+  const dispatch = useAppDispatch();
   useEffect(() => {
     if (incomeSourceToEdit) {
         form.setValue("name", incomeSourceToEdit.name);
@@ -43,79 +44,27 @@ function IncomeSourceSheet({ isOpen, onClose, incomeSourceToEdit }: IncomeSource
   })
 
   function handleSubmit(values: z.infer<typeof addIncomeSource>) {
-    
+    console.log("save button press")
     if(incomeSourceToEdit){
-        console.log("save button press")
-        IncomeSourceService.updateIncomeSource(incomeSourceToEdit.incomeSourceId,values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been updated",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-            })
-        })
-        console.log(values)
-
-        
+        dispatch(updateIncomeSource({
+          incomeSourceId: incomeSourceToEdit.incomeSourceId,
+          name: values.name,
+          goal: values.goal
+        }))
         }else{
-        console.log("save button press")
-        IncomeSourceService.saveIncomeSource(values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been saved",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-        })
-        })
-        console.log(values)
+          dispatch(saveIncomeSource(values))
         }
-
     }
 
   const form = useForm<z.infer<typeof addIncomeSource>>({
     resolver : zodResolver(addIncomeSource)
   })
 
-  const deleteIncomeSource = () =>{
+  const removeIncomeSource = () =>{
     if(incomeSourceToEdit)
-    IncomeSourceService.deleteIncomeSource(incomeSourceToEdit.incomeSourceId)
-    .then(Response => {
-      console.log(Response)
-      toast({
-        description: "Income Source has been deleted",
-      })
-    })
-    .catch(error =>{
-        if(error.response.data.message == "Database Error"){
-            console.log(error)
-            toast({
-                variant: "destructive",
-                duration:5000,
-                title: "Uh oh! Something went wrong.",
-                description: "Can't delete the income source because there are incomes connected to income source.",
-            })
-        }
-        else{
-            console.log(error)
-            toast({
-                variant: "destructive",
-                duration:5000,
-              title: "Uh oh! Something went wrong.",
-              description: "There was a problem with your request.",
-            })}
-      
-    })
+      dispatch(deleteIncomeSource(incomeSourceToEdit.incomeSourceId))
 }
 
-  const { toast } = useToast()
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
@@ -166,7 +115,7 @@ function IncomeSourceSheet({ isOpen, onClose, incomeSourceToEdit }: IncomeSource
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={deleteIncomeSource}>Continue</AlertDialogAction>
+                            <AlertDialogAction onClick={removeIncomeSource}>Continue</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                         </AlertDialog>:null}

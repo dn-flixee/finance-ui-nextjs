@@ -1,11 +1,13 @@
 
 import { Action, configureStore, ThunkAction } from '@reduxjs/toolkit'
 import incomeReducer from './features/income/incomeSlice'
+import incomeSourceReducer from './features/incomeSource/incomeSourceSlice'
 
 export const makeStore = () => {
   return configureStore({
     reducer: {
-      incomes: incomeReducer
+      incomes: incomeReducer,
+      incomeSources: incomeSourceReducer
     }
   })
 }
