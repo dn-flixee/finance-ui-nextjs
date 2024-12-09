@@ -3,16 +3,11 @@ import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import IncomeService from '@/components/IncomeService'
-import IncomeSourceService from '@/components/IncomeSourceService'
 import AccountService from '@/components/AccountService'
 import { useToast } from '@/components/ui/use-toast'
-import { CalendarIcon, ChevronDown } from 'lucide-react'
 import IncomeSheet from './IncomeSheet'
 import IncomeSourceSheet from './IncomeSourceSheet'
-import { date } from 'zod'
 import NavBar from '@/components/NavBar'
 
 import { selectIncomes, fetchIncomes,  } from '@/lib/features/income/incomeSlice'

@@ -95,7 +95,7 @@ export const incomeSourceSlice = createSlice({
                 goal : action.payload.goal
             });
             toast({
-                description: "IncomeSource saved successfully!",
+                description: "Income Source saved successfully!",
               })
         });
         builder.addCase(saveIncomeSource.rejected, (state, action) => {
@@ -126,7 +126,7 @@ export const incomeSourceSlice = createSlice({
                     }
                 }));
                 toast({
-                    description: "IncomeSource updated successfully!",
+                    description: "Income Source updated successfully!",
                   })
         });
         builder.addCase(updateIncomeSource.rejected, (state, action) => {
@@ -144,7 +144,7 @@ export const incomeSourceSlice = createSlice({
                 incomeSource.incomeSourceId !== action.payload
             );
             toast({
-                description: "IncomeSource deleted successfully!",
+                description: "Income Source deleted successfully!",
               })
         });
         builder.addCase(deleteIncomeSource.rejected, (state, action) => {
