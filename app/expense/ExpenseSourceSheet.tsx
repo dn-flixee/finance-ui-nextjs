@@ -3,13 +3,13 @@ import React, { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
-import ExpenseSourceService from '@/components/ExpenseSourceService'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useToast } from '@/components/ui/use-toast'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { deleteExpenseSource, saveExpenseSource, updateExpenseSource } from '@/lib/features/expenseSource/expenseSourceSlice'
+import { useAppDispatch } from '@/lib/hooks'
 
 interface ExpenseSource {
     expenseSourceId: number;
@@ -24,6 +24,8 @@ interface ExpenseSourceSheetProps {
 }
 
 function ExpenseSourceSheet({ isOpen, onClose, expenseSourceToEdit }: ExpenseSourceSheetProps) {
+
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     if (expenseSourceToEdit) {
@@ -43,79 +45,29 @@ function ExpenseSourceSheet({ isOpen, onClose, expenseSourceToEdit }: ExpenseSou
   })
 
   function handleSubmit(values: z.infer<typeof addExpenseSource>) {
+      console.log("save button press")
+      if(expenseSourceToEdit){
+          dispatch(updateExpenseSource({
+            expenseSourceId: expenseSourceToEdit.expenseSourceId,
+            name: values.name,
+            budget: values.budget
+          }))
+      }else{
+          dispatch(saveExpenseSource(values))
+      }
     
-    if(expenseSourceToEdit){
-        console.log("save button press")
-        ExpenseSourceService.updateExpenseSource(expenseSourceToEdit.expenseSourceId,values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been updated",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-            })
-        })
-        console.log(values)
-
-        
-        }else{
-        console.log("save button press")
-        ExpenseSourceService.saveExpenseSource(values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been saved",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-        })
-        })
-        console.log(values)
-        }
-
-    }
+  }
 
   const form = useForm<z.infer<typeof addExpenseSource>>({
     resolver : zodResolver(addExpenseSource)
   })
 
-  const deleteExpenseSource = () =>{
-    if(expenseSourceToEdit)
-    ExpenseSourceService.deleteExpenseSource(expenseSourceToEdit.expenseSourceId)
-    .then(Response => {
-      console.log(Response)
-      toast({
-        description: "Expense Source has been deleted",
-      })
-    })
-    .catch(error =>{
-        if(error.response.data.message == "Database Error"){
-            console.log(error)
-            toast({
-                variant: "destructive",
-                duration:5000,
-                title: "Uh oh! Something went wrong.",
-                description: "Can't delete the expense source because there are expenses connected to expense source.",
-            })
-        }
-        else{
-            console.log(error)
-            toast({
-                variant: "destructive",
-                duration:5000,
-              title: "Uh oh! Something went wrong.",
-              description: "There was a problem with your request.",
-            })}
-      
-    })
+  const removeExpenseSource = () =>{
+    if(expenseSourceToEdit){
+      dispatch(deleteExpenseSource(expenseSourceToEdit.expenseSourceId))
+    }
 }
 
-  const { toast } = useToast()
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
@@ -166,7 +118,7 @@ function ExpenseSourceSheet({ isOpen, onClose, expenseSourceToEdit }: ExpenseSou
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={deleteExpenseSource}>Continue</AlertDialogAction>
+                            <AlertDialogAction onClick={removeExpenseSource}>Continue</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                         </AlertDialog>:null}

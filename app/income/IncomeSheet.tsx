@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/select";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -148,7 +147,6 @@ function IncomeSheet({
       dispatch(deleteIncome(incomeToEdit.incomeId))
     }
   };
-  const { toast } = useToast();
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="bg-gray-900 text-white">
