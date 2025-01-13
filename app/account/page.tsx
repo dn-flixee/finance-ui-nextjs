@@ -74,7 +74,7 @@ export default function Component() {
 
   const filteredTransfer = transfers.transfers.filter(transfer => {
     const transferDate = new Date(transfer.date)
-    return transferDate.getMonth() + 1 === parseInt(selectedMonth) && transferDate.getFullYear() === parseInt(selectedYear)
+    return transferDate.getMonth() === parseInt(selectedMonth) && transferDate.getFullYear() === parseInt(selectedYear)
   })
 
   const years: number[] = Array.from(
@@ -88,18 +88,18 @@ export default function Component() {
  console.log(new Date())
 
   const months = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' },
+    { value: 0, label: 'January' },
+    { value: 1, label: 'February' },
+    { value: 2, label: 'March' },
+    { value: 3, label: 'April' },
+    { value: 4, label: 'May' },
+    { value: 5, label: 'June' },
+    { value: 6, label: 'July' },
+    { value: 7, label: 'August' },
+    { value: 8, label: 'September' },
+    { value: 9, label: 'October' },
+    { value: 10, label: 'November' },
+    { value: 11, label: 'December' },
   ]
 
   return (
@@ -138,12 +138,12 @@ export default function Component() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={openTransferSheet}>
+              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openTransferSheet()}>
                 New
               </Button>
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">November 2022</h3>
+              <h3 className="text-lg font-semibold">{months.find(m => m.value === selectedMonth)?.label} {selectedYear}</h3>
               {filteredTransfer.map((transfer) => (
                 <div key={transfer.transferId} className="flex justify-between items-center p-2 hover:bg-gray-700 rounded cursor-pointer" onClick={() => openTransferSheet(transfer)}>
                   <div className="flex items-center space-x-2">
@@ -168,26 +168,30 @@ export default function Component() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex space-x-2 mb-4">
-              <Select defaultValue="Nov">
+          <div className="flex space-x-2 mb-4">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-[80px] bg-gray-700">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Nov">Nov</SelectItem>
-                  {/* Add more months as needed */}
+                  {months.map((month)=> (
+                    <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="2022">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-[80px] bg-gray-700">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2022">2022</SelectItem>
-                  {/* Add more years as needed */}
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={openAccountSheet}>
+              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openTransferSheet()}>
                 New
               </Button>
             </div>
@@ -200,7 +204,7 @@ export default function Component() {
                   <div className="text-xl font-bold">₹ {account.startingBalance}</div>
                 </div>
               ))}
-              <Button variant="outline" className="h-full flex items-center justify-center" onClick={openAccountSheet}>
+              <Button variant="outline" className="h-full flex items-center justify-center" onClick={()=>openAccountSheet()}>
                 <PlusCircle className="h-6 w-6" />
               </Button>
             </div>

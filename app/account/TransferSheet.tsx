@@ -19,13 +19,13 @@ import { format } from 'date-fns'
 import { selectAccounts } from '@/lib/features/account/accountSlice'
 
 interface Transfer {
-    id: number;
+    transferId: number;
     name: string;
-    from: number;
-    to: number;
+    fromAccount: number;
+    toAccount: number;
     amount: number;
-    date: string;
-  }
+    date: Date;
+}
 
   interface Account {
     accountId: number;
@@ -42,26 +42,23 @@ interface Transfer {
     useEffect(() => {
       if (transferToEdit) {
         form.setValue("name",transferToEdit.name)
-        form.setValue("from","")
-        form.setValue("to","")
+        form.setValue("fromAccount",transferToEdit.fromAccount)
+        form.setValue("toAccount",transferToEdit.toAccount)
         form.setValue("amount",transferToEdit.amount)
         form.setValue("date",transferToEdit.date)
-        console.log("------------------------")
-        console.log(accounts.accounts.filter(acc => acc.accountId === transferToEdit.to).map(acc => acc.name)[0])
       } else {
         form.setValue("name","")
-        form.setValue("from","")
-        form.setValue("to","")
+        form.setValue("fromAccount",0)
+        form.setValue("toAccount",0)
         form.setValue("amount",0)
         form.setValue("date",new Date())
-
       }
     }, [transferToEdit])
 
     const addTransfer = z.object({
       name: z.string().min(1).max(255),
-      from: z.string().min(1).max(255),
-      to: z.string().min(1).max(255),
+      fromAccount: z.string().min(1).max(255),
+      toAccount: z.string().min(1).max(255),
       amount: z.coerce.number().positive(),
       date: z.date({
           required_error: "Please select a date and time",
@@ -78,12 +75,12 @@ interface Transfer {
       
           if(transferToEdit){
             dispatch(updateTransfer({
-              transferId: transferToEdit.id,
-              name: transferToEdit.name,
-              amount: transferToEdit.amount,
-              from: transferToEdit.from,
-              to: transferToEdit.to,
-              date: transferToEdit.date
+              transferId: transferToEdit.transferId,
+              name: values.name,
+              amount: values.amount,
+              fromAccount: values.fromAccount,
+              toAccount: values.toAccount,
+              date: values.date
             }))
           }else{
               dispatch(saveTransfer(values));
@@ -92,7 +89,7 @@ interface Transfer {
 
     const removeTranfer = () => {
       if(transferToEdit)
-        dispatch(deleteTransfer(transferToEdit.id))
+        dispatch(deleteTransfer(transferToEdit.transferId))
     }
   
     return (
@@ -132,14 +129,14 @@ interface Transfer {
                           
                           <FormField
                             control={form.control}
-                            name="from"
+                            name="fromAccount"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Account From</FormLabel>
                                 <Select onValueChange={field.onChange} >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={transferToEdit? transferToEdit.from : "Account"} />
+                                      <SelectValue placeholder={transferToEdit? transferToEdit.fromAccount : "Account"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
@@ -154,14 +151,14 @@ interface Transfer {
                           />
                           <FormField
                             control={form.control}
-                            name="to"
+                            name="toAccount"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Account To</FormLabel>
                                 <Select onValueChange={field.onChange} >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={transferToEdit? transferToEdit.from : "Account"} />
+                                      <SelectValue placeholder={transferToEdit? transferToEdit.toAccount : "Account"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
@@ -239,7 +236,7 @@ interface Transfer {
                           </AlertDialogContent>
                         </AlertDialog>:null}
                           <Button type='submit' className='mt-2'
-                            form='income-form'
+                            form='transfer-form'
                             >Submit</Button>
                             </SheetFooter>
                         </form>

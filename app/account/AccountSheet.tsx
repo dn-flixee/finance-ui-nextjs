@@ -10,30 +10,32 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast, useToast } from '@/components/ui/use-toast'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import AccountService from '@/components/AccountService'
+import { deleteAccount, saveAccount, updateAccount } from '@/lib/features/account/accountSlice'
+import { useAppDispatch } from '@/lib/hooks'
 
 interface Account {
     accountId: number;
     name: string;
-    balance: number;
+    startingBalance: number;
   }
 
 export default function AccountSheet({ isOpen, onClose, accountToEdit }: { isOpen: boolean; onClose: () => void; accountToEdit: Account | null }) {
-    const [name, setName] = useState(accountToEdit ? accountToEdit.name : '')
-    const [balance, setBalance] = useState(accountToEdit ? accountToEdit.balance : '')
-  
+
+    const dispatch = useAppDispatch();
+
     useEffect(() => {
       if (accountToEdit) {
-        setName(accountToEdit.name)
-        setBalance(accountToEdit.balance)
+        form.setValue("name",accountToEdit.name)
+        form.setValue("startingBalance",accountToEdit.startingBalance)
       } else {
-        setName('')
-        setBalance('')
+        form.setValue("name","")
+        form.setValue("startingBalance",0)
       }
     }, [accountToEdit])
 
     const addAccount = z.object({
       name: z.string().min(1).max(255),
-      balance: z.coerce.number().positive()
+      startingBalance: z.coerce.number().positive()
     })
 
     const form = useForm<z.infer<typeof addAccount>>({
@@ -41,70 +43,22 @@ export default function AccountSheet({ isOpen, onClose, accountToEdit }: { isOpe
     })
   
     const handleSubmit = (values: z.infer<typeof addAccount>) => {
+      console.log("save button press")
+
       if(accountToEdit){
-        console.log("save button press")
-        AccountService.updateAccount(accountToEdit.accountId,values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been updated",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-            })
-        })
-        console.log(values)
-
-        
+        dispatch(updateAccount({
+          accountId: accountToEdit.accountId,
+          name: values.name,
+          startingBalance: values.startingBalance
+        }))
         }else{
-        console.log("save button press")
-        AccountService.saveAccount(values).then(Response => {
-        console.log(Response)
-        toast({
-            description: "Your Input has been saved",
-        })
-        }).catch(error => {
-        console.log(error)
-        toast({
-            title: "Uh oh! Something went wrong.",
-            description: "There was a problem with your request.",
-        })
-        })
-        console.log(values)
-        }
+          dispatch(saveAccount(values))
     }
+  }
 
-    const deleteAccount = () =>{
+    const removeAccount = () =>{
       if(accountToEdit)
-      AccountService.deleteAccount(accountToEdit.accountId)
-      .then(Response => {
-        console.log(Response)
-        toast({
-          description: "Account has been deleted",
-        })
-      })
-      .catch(error =>{
-          if(error.response.data.message == "Database Error"){
-              console.log(error)
-              toast({
-                  variant: "destructive",
-                  duration:5000,
-                  title: "Uh oh! Something went wrong.",
-                  description: "Can't delete the account because there are other items connected to this account.",
-              })
-          }
-          else{
-              console.log(error)
-              toast({
-                  variant: "destructive",
-                  duration:5000,
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem with your request.",
-              })}
-        
-      })
+        dispatch(deleteAccount(accountToEdit.accountId))
   }
   
     return (
@@ -130,10 +84,10 @@ export default function AccountSheet({ isOpen, onClose, accountToEdit }: { isOpe
                             
                             <FormField 
                               control={form.control}  
-                              name="balance" 
+                              name="startingBalance" 
                               render={({field})=>{
                                 return (<FormItem>
-                                  <FormLabel>Balance</FormLabel>
+                                  <FormLabel>Starting Balance</FormLabel>
                                   <FormControl>
                                     <Input placeholder='balane' type='number' {...field}/>                   
                                   </FormControl>
@@ -157,7 +111,7 @@ export default function AccountSheet({ isOpen, onClose, accountToEdit }: { isOpe
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={deleteAccount}>Continue</AlertDialogAction>
+                            <AlertDialogAction onClick={removeAccount}>Continue</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                         </AlertDialog>:null}

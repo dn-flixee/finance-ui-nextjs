@@ -53,7 +53,7 @@ export const fetchTransfers = createAppAsyncThunk(
 );
 
 export const saveTransfer = createAppAsyncThunk(
-    "transfer/saveTransfers",
+    "transfer/saveTransfer",
     async (transfer: NewTransfer) => {
         const res = await axios.post(TRANSFER_API_BASE_URL, transfer);
         return res.data;
