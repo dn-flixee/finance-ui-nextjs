@@ -177,8 +177,7 @@ export default function Component() {
                 </SelectTrigger>
                 <SelectContent>
                   {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
+                    <SelectItem key={month.value} value={month.value}>{month.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

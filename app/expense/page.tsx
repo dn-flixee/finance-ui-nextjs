@@ -112,7 +112,7 @@ export default function Component() {
       ...source,
       current: totalExpense,
       percentage: Math.round((totalExpense / source.budget) * 100)
-    }
+    } 
   })
   console.log("--------------------")
   console.log(filteredExpenseSource)

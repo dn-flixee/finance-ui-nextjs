@@ -1,69 +1,56 @@
-'use client'
+"use client"
 import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {  CreditCard, PlusCircle } from 'lucide-react'
-import AccountSheet from './AccountSheet'
 import TransferSheet from './TransferSheet'
+import AccountSheet from './AccountSheet'
 import NavBar from '@/components/NavBar'
-import AccountService from '@/components/AccountService'
-import { useToast } from '@/components/ui/use-toast'
+import { selectTransfers, fetchTransfers,  } from '@/lib/features/transfer/transferSlice'
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
+import { CreditCard, PlusCircle } from 'lucide-react'
 
 interface Transfer {
-  transferId: number;
-  name: string;
-  fromAccount: number;
-  toAccount: number;
-  amount: number;
-  date: Date;
-}
-
+    transferId: number;
+    name: string;
+    fromAccount: number;
+    toAccount: number;
+    amount: number;
+    date: Date;
+  }
 interface Account {
-  accountId: number;
-  name: string;
-  startingBalance: number;
-  type: number;
+    accountId: number;
+    name: string;
+    goal: number;
 }
-
+  
 export default function Component() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transfer, setTransfer] = useState<Transfer[]>([])
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
-  const [isTransferSheetOpen, setIsTransferSheetOpen] = useState(false)
-  const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null)
-  const [isNewAccountSheetOpen, setIsNewAccountSheetOpen] = useState(false)
-  const [isNewTransferSheetOpen, setIsNewTransferSheetOpen] = useState(false)
-  const { toast } = useToast()
+
+  const transfers = useAppSelector(selectTransfers)
+  const accounts = useAppSelector(selectAccounts)
+  const dispatch = useAppDispatch()
+
+    const date = new Date();
+    const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
+    const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
+    const [isTransferSheetOpen, setIsTransferSheetOpen] = useState(false)
+    const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null)
+    const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
+    const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
 
   useEffect(() => {
-    AccountService.getAccount()
-    .then((Response) => {
-      console.log(Response.data)
-      setAccounts(Response.data)
-    }).catch( error => {
-      console.log(error)
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching expense data.",
-      })
-    })
-  },[])
+    if(transfers.status === 'idle'){
+        dispatch(fetchTransfers())
+    }
+    },[dispatch,transfers.status]);
 
-  const openAccountSheet = (account: Account | null = null) => {
-    setSelectedAccount(account)
-    setIsAccountSheetOpen(true)
-  }
+    useEffect(()=>{
+      if(accounts.status === 'idle'){
+        dispatch(fetchAccounts())
+      }
+    },[dispatch,accounts.status])
 
-  const closeAccountSheet = () => {
-    setIsAccountSheetOpen(false)
-    setSelectedAccount(null)
-  }
 
   const openTransferSheet = (transfer: Transfer | null = null) => {
     setSelectedTransfer(transfer)
@@ -74,6 +61,31 @@ export default function Component() {
     setIsTransferSheetOpen(false)
     setSelectedTransfer(null)
   }
+
+  const openAccountSheet = (source: Account | null = null) => {
+    setSelectedAccount(source)
+    setIsAccountSheetOpen(true)
+  }
+
+  const closeAccountSheet = () => {
+    setIsAccountSheetOpen(false)
+    setSelectedAccount(null)
+  }
+
+  const filteredTransfer = transfers.transfers.filter(transfer => {
+    const transferDate = new Date(transfer.date)
+    return transferDate.getMonth() + 1 === parseInt(selectedMonth) && transferDate.getFullYear() === parseInt(selectedYear)
+  })
+
+  const years: number[] = Array.from(
+    new Set(
+        transfers.transfers.map(transfer => {
+            const date = new Date(transfer.date); // Convert to Date object
+            return date.getFullYear(); // Extract the year
+        })
+    )
+);
+ console.log(new Date())
 
   const months = [
     { value: 1, label: 'January' },
@@ -90,9 +102,8 @@ export default function Component() {
     { value: 12, label: 'December' },
   ]
 
-
-
   return (
+    <>
     <div className="min-h-screen bg-gray-900 text-white">
       <NavBar/>
       <main className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -120,8 +131,11 @@ export default function Component() {
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2022">2022</SelectItem>
-                  {/* Add more years as needed */}
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={openTransferSheet}>
@@ -130,7 +144,7 @@ export default function Component() {
             </div>
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">November 2022</h3>
-              {transfer.map((transfer) => (
+              {filteredTransfer.map((transfer) => (
                 <div key={transfer.transferId} className="flex justify-between items-center p-2 hover:bg-gray-700 rounded cursor-pointer" onClick={() => openTransferSheet(transfer)}>
                   <div className="flex items-center space-x-2">
                     <span className="text-xl">{transfer.name === 'ATM' ? '🏧' : '💸'}</span>
@@ -178,7 +192,7 @@ export default function Component() {
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {accounts.map((account) => (
+              {accounts.accounts.map((account) => (
                 <div key={account.accountId} className="bg-gray-700 p-4 rounded-lg cursor-pointer" onClick={() => openAccountSheet(account)}>
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="font-semibold">{account.name}</span>
@@ -194,10 +208,11 @@ export default function Component() {
         </Card>
       </main>
       <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={selectedAccount} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={selectedTransfer} accountData={accounts} />
+      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet}  transferToEdit={selectedTransfer}  />
       {/* <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={null} />
       <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={null} /> */}
     </div>
+    </>
   )
-
 }
+
