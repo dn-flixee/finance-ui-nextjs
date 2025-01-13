@@ -12,17 +12,20 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover'
 import { CalendarIcon } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-
-
+import { deleteTransfer, saveTransfer, updateTransfer } from '@/lib/features/transfer/transferSlice'
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { selectAccounts } from '@/lib/features/account/accountSlice'
 
 interface Transfer {
-    id: number;
-    type: string;
-    from: string;
-    to: string;
+    transferId: number;
+    name: string;
+    fromAccount: number;
+    toAccount: number;
     amount: number;
-    date: string;
-  }
+    date: Date;
+}
 
   interface Account {
     accountId: number;
@@ -31,33 +34,31 @@ interface Transfer {
     type: number;
   }
 
-export default function TransferSheet({ isOpen, onClose, transferToEdit = null,accountData }: { isOpen: boolean; onClose: () => void; transferToEdit: Transfer | null }) {
-    const [type, setType] = useState(transferToEdit ? transferToEdit.type : '')
-    const [from, setFrom] = useState(transferToEdit ? transferToEdit.from : '')
-    const [to, setTo] = useState(transferToEdit ? transferToEdit.to : '')
-    const [amount, setAmount] = useState(transferToEdit ? transferToEdit.amount : '')
-    const [date, setDate] = useState(transferToEdit ? transferToEdit.date : '')
+  function TransferSheet({ isOpen, onClose, transferToEdit = null }: { isOpen: boolean; onClose: () => void; transferToEdit: Transfer | null }) {
+
+    const dispatch = useAppDispatch();
+    const accounts = useAppSelector(selectAccounts)
   
     useEffect(() => {
       if (transferToEdit) {
-        setType(transferToEdit.type)
-        setFrom(transferToEdit.from)
-        setTo(transferToEdit.to)
-        setAmount(transferToEdit.amount)
-        setDate(transferToEdit.date)
+        form.setValue("name",transferToEdit.name)
+        form.setValue("fromAccount",transferToEdit.fromAccount)
+        form.setValue("toAccount",transferToEdit.toAccount)
+        form.setValue("amount",transferToEdit.amount)
+        form.setValue("date",transferToEdit.date)
       } else {
-        setType('')
-        setFrom('')
-        setTo('')
-        setAmount('')
-        setDate('')
+        form.setValue("name","")
+        form.setValue("fromAccount",0)
+        form.setValue("toAccount",0)
+        form.setValue("amount",0)
+        form.setValue("date",new Date())
       }
     }, [transferToEdit])
 
     const addTransfer = z.object({
-      type: z.string().min(1).max(255),
-      from: z.string().min(1).max(255),
-      to: z.string().min(1).max(255),
+      name: z.string().min(1).max(255),
+      fromAccount: z.string().min(1).max(255),
+      toAccount: z.string().min(1).max(255),
       amount: z.coerce.number().positive(),
       date: z.date({
           required_error: "Please select a date and time",
@@ -69,11 +70,26 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
       resolver : zodResolver(addTransfer),
     })
   
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault()
-      // Handle form submission here
-      console.log({ type, from, to, amount, date })
-      onClose()
+    function handleSubmit(values: z.infer<typeof addTransfer>,)  {
+       console.log("save button press")
+      
+          if(transferToEdit){
+            dispatch(updateTransfer({
+              transferId: transferToEdit.transferId,
+              name: values.name,
+              amount: values.amount,
+              fromAccount: values.fromAccount,
+              toAccount: values.toAccount,
+              date: values.date
+            }))
+          }else{
+              dispatch(saveTransfer(values));
+          }
+    }
+
+    const removeTranfer = () => {
+      if(transferToEdit)
+        dispatch(deleteTransfer(transferToEdit.transferId))
     }
   
     return (
@@ -83,15 +99,15 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
             <SheetTitle className="text-white">{transferToEdit ? 'Edit Transfer' : 'Add Transfer'}</SheetTitle>
           </SheetHeader>
           <Form {...form}>
-                        <form id="income-form" onSubmit={form.handleSubmit(handleSubmit)}>
+                        <form id="transfer-form" onSubmit={form.handleSubmit(handleSubmit)}>
                           <FormField 
                               control={form.control}  
-                              name="type" 
+                              name="name" 
                               render={({field})=>{
                                 return (<FormItem>
-                                  <FormLabel>Type</FormLabel>
+                                  <FormLabel>Name</FormLabel>
                                   <FormControl>
-                                    <Input placeholder='type' type='text' {...field}/>                   
+                                    <Input placeholder='name' type='text' {...field}/>                   
                                   </FormControl>
                                   <FormMessage/>
                                 </FormItem>);
@@ -113,18 +129,18 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
                           
                           <FormField
                             control={form.control}
-                            name="from"
+                            name="fromAccount"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Account</FormLabel>
+                                <FormLabel>Account From</FormLabel>
                                 <Select onValueChange={field.onChange} >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={transferToEdit? transferToEdit.from : "Account"} />
+                                      <SelectValue placeholder={transferToEdit? transferToEdit.fromAccount : "Account"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {accountData && accountData.map((option,index) => (
+                                    {accounts.accounts && accounts.accounts.map((option,index) => (
                                       <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -133,31 +149,29 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
                               </FormItem>
                             )}
                           />
-
                           <FormField
-                                    control={form.control}
-                                    name="incomeSourceName"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Income Source</FormLabel>
-                                        <Select onValueChange={field.onChange} >
-                                          <FormControl>
-                                            <SelectTrigger>
-                                              <SelectValue placeholder={transferToEdit? transferToEdit.incomeSourceName:"Income Source"} />
-                                            </SelectTrigger>
-                                          </FormControl>
-                                          <SelectContent>
-                                          {incomeSourceData && incomeSourceData.map((option,index) =>(
-                                        <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
-                                      ))}
-                                          </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                          
-                          
+                            control={form.control}
+                            name="toAccount"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Account To</FormLabel>
+                                <Select onValueChange={field.onChange} >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={transferToEdit? transferToEdit.toAccount : "Account"} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {accounts.accounts && accounts.accounts.map((option,index) => (
+                                      <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                                                    
                           <FormField
                             control={form.control}
                             name="date"
@@ -217,12 +231,12 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={deleteTransfer}>Continue</AlertDialogAction>
+                              <AlertDialogAction onClick={removeTranfer}>Continue</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>:null}
                           <Button type='submit' className='mt-2'
-                            form='income-form'
+                            form='transfer-form'
                             >Submit</Button>
                             </SheetFooter>
                         </form>
@@ -231,3 +245,5 @@ export default function TransferSheet({ isOpen, onClose, transferToEdit = null,a
       </Sheet>
     )
   }
+
+  export default TransferSheet;
