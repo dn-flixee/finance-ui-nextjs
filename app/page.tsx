@@ -9,6 +9,7 @@
   import { PieChart, Pie, Cell } from 'recharts'
   import ExpenseService from "@/components/ExpenseService"
   import { string } from "zod"
+import NavBar from "@/components/NavBar"
 
 
   const financeData = {
@@ -89,18 +90,9 @@
     }, [])
 
     return (
+      <>
+      <NavBar/>
       <div className="min-h-screen bg-gray-900 text-white">
-        <header className="bg-green-700 p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <FileTextIcon className="h-8 w-8" />
-            <span className="font-bold text-xl">FinTrack</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>UserName</span>
-            <UserCircleIcon className="h-8 w-8" />
-            <ChevronDownIcon className="h-4 w-4" />
-          </div>
-        </header>
         <main className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="bg-gray-800">
@@ -217,5 +209,6 @@
           </div>
         </main>
       </div>
+      </>
     )
   }

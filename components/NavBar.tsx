@@ -1,12 +1,30 @@
-import Image from "next/image"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarTrigger,
+} from "@/components/ui/menubar"
 import { ChevronDown } from "lucide-react"
+import { useSession } from "next-auth/react"
+import {auth} from "@/auth"
+import { Button } from "./ui/button"
+import { handleSignOut } from "@/app/actions/authActions"
 
-function NavBar() {
+ function NavBar() {
+  
+  const {data: session} = useSession();
+  console.log("session")
+  console.log(session)
+  console.log("session")
+
   return (
     <header className="bg-green-700 p-4 flex justify-between items-center">
         <div className="flex items-center space-x-2">
@@ -30,11 +48,13 @@ function NavBar() {
         </div>
         <div className="flex items-center space-x-2">
           <Avatar>
-            <AvatarImage src="/placeholder.svg?height=32&width=32" alt="@username" />
-            <AvatarFallback>UN</AvatarFallback>
+            <AvatarImage src={session?.user?.image} alt="@username" />
+            <AvatarFallback>{session?.user?.name}</AvatarFallback>
           </Avatar>
-          <span>UserName</span>
-          <ChevronDown className="h-4 w-4" />
+          <span>{session?.user?.name}</span>
+          <form action={handleSignOut}>
+          <Button variant="default" type="submit">Sign Out</Button>
+          </form>
         </div>
       </header>
   )
