@@ -19,6 +19,8 @@ class AccountService {
         return axios.post(ACCOUNT_API_BASE_URL,account)
     }
     getAccount = async ()=>{
+        const db = drizzle(process.env.DATABASE_URL!);
+                const allAccounts = await db.select().from(account);
         return axios.get(ACCOUNT_API_BASE_URL)
     }
     updateAccount = async (id:number, account:Account) => {
