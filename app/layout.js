@@ -3,7 +3,8 @@ import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 import StoreProvider from './StoreProvider';
-import {SessionProvider} from 'next-auth/react'
+import AuthProvider from './context/AuthProvider';
+
 
 
 const inter = Inter({ subsets: ['latin'] })
@@ -15,8 +16,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <SessionProvider>
     <html lang="en">
+      <AuthProvider>
       <body className={inter.className}>
       <ThemeProvider
             attribute="class"
@@ -30,7 +31,7 @@ export default function RootLayout({ children }) {
       <Toaster />
       </ThemeProvider>
       </body>
+      </AuthProvider>
     </html>
-    </SessionProvider>
   )
 }
