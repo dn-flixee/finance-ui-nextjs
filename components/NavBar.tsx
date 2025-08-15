@@ -1,42 +1,114 @@
-import Image from "next/image"
+"use client"
+import React from 'react'
+import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
-import { ChevronDown } from "lucide-react"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-function NavBar() {
+const NavBar = () => {
+  const { data: session, status } = useSession()
+
+  if (status === "loading") {
+    return <div>Loading...</div>
+  }
+
+  if (!session) {
+    return (
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <Link href="/" className="text-xl font-bold text-gray-900">
+                Finance Tracker
+              </Link>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/login">
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+              <Link href="/signup">
+                <Button>Sign Up</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+    )
+  }
+
   return (
-    <header className="bg-green-700 p-4 flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <svg
-            className="h-6 w-6 text-white"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
-            <path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9" />
-            <path d="M12 3v6" />
-          </svg>
-          <h1 className="text-xl font-bold">HOME</h1>
+    <nav className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center space-x-8">
+            <Link href="/dashboard" className="text-xl font-bold text-gray-900">
+              Finance Tracker
+            </Link>
+            <div className="hidden sm:flex space-x-8">
+              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
+                Dashboard
+              </Link>
+              <Link href="/income" className="text-gray-600 hover:text-gray-900">
+                Income
+              </Link>
+              <Link href="/expense" className="text-gray-600 hover:text-gray-900">
+                Expenses
+              </Link>
+              <Link href="/account" className="text-gray-600 hover:text-gray-900">
+                Accounts
+              </Link>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user?.image || ''} alt={session.user?.name || ''} />
+                    <AvatarFallback>
+                      {session.user?.name?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {session.user?.name && (
+                      <p className="font-medium">{session.user.name}</p>
+                    )}
+                    {session.user?.email && (
+                      <p className="w-[200px] truncate text-sm text-muted-foreground">
+                        {session.user.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onSelect={(event) => {
+                    event.preventDefault()
+                    signOut({ callbackUrl: '/login' })
+                  }}
+                >
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Avatar>
-            <AvatarImage src="/placeholder.svg?height=32&width=32" alt="@username" />
-            <AvatarFallback>UN</AvatarFallback>
-          </Avatar>
-          <span>UserName</span>
-          <ChevronDown className="h-4 w-4" />
-        </div>
-      </header>
+      </div>
+    </nav>
   )
 }
+
 export default NavBar

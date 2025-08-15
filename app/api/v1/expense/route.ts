@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformExpense } from '@/lib/transformers'
 import { z } from 'zod'
@@ -13,7 +15,13 @@ const expenseSchema = z.object({
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+        if (!session?.user) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
     const expenses = await prisma.expense.findMany({
+      where: { userId: session.user.id },
       include: {
         account: true,
         expenseSource: true
