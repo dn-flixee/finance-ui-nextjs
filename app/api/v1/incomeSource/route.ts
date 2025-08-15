@@ -1,0 +1,41 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { transformIncomeSource } from '@/lib/transformers'
+import { z } from 'zod'
+
+const incomeSourceSchema = z.object({
+  name: z.string().min(1),
+  goal: z.number().positive().optional()
+})
+
+export async function GET() {
+  try {
+    const incomeSources = await prisma.incomeSource.findMany({
+      orderBy: { incomeSourceId: 'asc' }
+    })
+    
+    return NextResponse.json(incomeSources.map(transformIncomeSource))
+  } catch (error) {
+    console.error('Error fetching income sources:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const validatedData = incomeSourceSchema.parse(body)
+    
+    const incomeSource = await prisma.incomeSource.create({
+      data: validatedData
+    })
+    
+    return NextResponse.json(transformIncomeSource(incomeSource), { status: 201 })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 })
+    }
+    console.error('Error creating income source:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}

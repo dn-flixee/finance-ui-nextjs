@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Account {
+  id              String @id @default(cuid())
+  accountId       Int    @unique @default(autoincrement())
+  name            String @unique
+  startingBalance Float
+  type            Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  incomes       Income[]
+  expenses      Expense[]
+  transfersFrom Transfer[] @relation("FromAccount")
+  transfersTo   Transfer[] @relation("ToAccount")
+
+  @@map("account")
+}
+
+model ExpenseSource {
+  id              String @id @default(cuid())
+  expenseSourceId Int    @unique @default(autoincrement())
+  name            String @unique
+  budget          Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  expenses Expense[]
+
+  @@map("expense_source")
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  expenseId Int      @unique @default(autoincrement())
+  name      String
+  amount    Float
+  date      DateTime
+  accountId Int
+  expenseSourceId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  account       Account       @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  expenseSource ExpenseSource @relation(fields: [expenseSourceId], references: [expenseSourceId], onDelete: Cascade)
+
+  @@map("expense")
+}
+
+model IncomeSource {
+  id             String @id @default(cuid())
+  incomeSourceId Int    @unique @default(autoincrement())
+  name           String @unique
+  goal           Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  incomes Income[]
+
+  @@map("income_source")
+}
+
+model Income {
+  id             String   @id @default(cuid())
+  incomeId       Int      @unique @default(autoincrement())
+  name           String
+  amount         Float
+  date           DateTime
+  accountId      Int
+  incomeSourceId Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  account      Account      @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  incomeSource IncomeSource @relation(fields: [incomeSourceId], references: [incomeSourceId], onDelete: Cascade)
+
+  @@map("income")
+}
+
+model Transfer {
+  id            String   @id @default(cuid())
+  transferId    Int      @unique @default(autoincrement())
+  name          String
+  amount        Float
+  date          DateTime
+  fromAccountId Int
+  toAccountId   Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  fromAccount Account @relation("FromAccount", fields: [fromAccountId], references: [accountId], onDelete: Cascade)
+  toAccount   Account @relation("ToAccount", fields: [toAccountId], references: [accountId], onDelete: Cascade)
+
+  @@map("transfer")
+}
