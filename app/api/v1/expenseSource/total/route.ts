@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
@@ -6,10 +8,17 @@ export async function GET(
   { params }: { params: { expenseSourceId: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseSourceId = parseInt(params.expenseSourceId)
     
     const result = await prisma.expense.aggregate({
-      where: { expenseSourceId },
+      where: { 
+        expenseSourceId:expenseSourceId,
+        userId: session.user.id
+       },
       _sum: {
         amount: true
       }

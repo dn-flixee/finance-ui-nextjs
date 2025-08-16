@@ -8,10 +8,16 @@
   import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
   import { PieChart, Pie, Cell } from 'recharts'
   import ExpenseService from "@/components/ExpenseService"
-  import { string } from "zod"
+import NavBar from "@/components/NavBar"
 
 
-  const financeData = {
+  interface FinanceDataPoint {
+    name: string;
+    income: number;
+    spending: number;
+  }
+
+  const financeData: Record<string, FinanceDataPoint[]> = {
     weekly: [
       { name: 'Mon', income: 500, spending: 300 },
       { name: 'Tue', income: 600, spending: 400 },
@@ -43,14 +49,6 @@
     ],
   }
 
-  const expenseData1 = {
-    "NA": [
-    {
-      "name": "NA",
-      "value": 0
-    }
-    ]
-  }
   interface ExpenseEntry {
     name: string;
     value: number;
@@ -58,6 +56,15 @@
 
   interface ExpenseData {
     [month: string]: ExpenseEntry[];
+  }
+
+  const expenseData1: ExpenseData = {
+    "NA": [
+      {
+        "name": "NA",
+        "value": 0
+      }
+    ]
   }
 
 
@@ -90,17 +97,8 @@
 
     return (
       <div className="min-h-screen bg-gray-900 text-white">
-        <header className="bg-green-700 p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <FileTextIcon className="h-8 w-8" />
-            <span className="font-bold text-xl">FinTrack</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>UserName</span>
-            <UserCircleIcon className="h-8 w-8" />
-            <ChevronDownIcon className="h-4 w-4" />
-          </div>
-        </header>
+        
+        <NavBar/>
         <main className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="bg-gray-800">
@@ -189,7 +187,7 @@
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
-                      data={expenseData[expenseMonth]}
+                      data={expenseData[expenseMonth] || []}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -197,14 +195,14 @@
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {expenseData[expenseMonth].map((entry, index) => (
+                      {(expenseData[expenseMonth] || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-4">
-                  {expenseData[expenseMonth].map((item, index) => (
+                  {(expenseData[expenseMonth] || []).map((item, index) => (
                     <div key={item.name} className="flex items-center">
                       <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: COLORS[index] }}></div>
                       <span>{item.name}</span>

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformTransfer } from '@/lib/transformers'
 import { z } from 'zod'
@@ -13,7 +15,12 @@ const transferSchema = z.object({
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const transfers = await prisma.transfer.findMany({
+      where: { userId: session.user.id },
       include: {
         fromAccount: true,
         toAccount: true
@@ -30,16 +37,27 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const validatedData = transferSchema.parse(body)
     
     // Verify both accounts exist
     const fromAccount = await prisma.account.findUnique({
-      where: { accountId: validatedData.fromAccount }
+      where: { 
+        accountId: validatedData.fromAccount,
+        userId: session.user.id 
+      }
+       
     })
     
     const toAccount = await prisma.account.findUnique({
-      where: { accountId: validatedData.toAccount }
+      where: { 
+        accountId: validatedData.toAccount,
+        userId: session.user.id 
+      }
     })
     
     if (!fromAccount || !toAccount) {
@@ -62,7 +80,8 @@ export async function POST(request: NextRequest) {
         amount: validatedData.amount,
         date: new Date(validatedData.date),
         fromAccountId: validatedData.fromAccount,
-        toAccountId: validatedData.toAccount
+        toAccountId: validatedData.toAccount,
+        userId: session.user.id
       },
       include: {
         fromAccount: true,

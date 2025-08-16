@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformTransfer } from '@/lib/transformers'
 import { z } from 'zod'
@@ -16,9 +18,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const transferId = parseInt(params.id)
     const transfer = await prisma.transfer.findUnique({
-      where: { transferId },
+      where: { 
+        transferId: transferId,
+        userId: session.user.id 
+      },
       include: {
         fromAccount: true,
         toAccount: true
@@ -41,6 +50,10 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const transferId = parseInt(params.id)
     const body = await request.json()
     const validatedData = transferUpdateSchema.parse(body)
@@ -56,7 +69,10 @@ export async function PUT(
     // Validate accounts exist if being updated
     if (validatedData.fromAccount) {
       const fromAccount = await prisma.account.findUnique({
-        where: { accountId: validatedData.fromAccount }
+        where: { 
+          accountId: validatedData.fromAccount,
+          userId: session.user.id
+         }
       })
       if (!fromAccount) {
         return NextResponse.json({ error: 'From Account not found' }, { status: 404 })
@@ -65,7 +81,10 @@ export async function PUT(
     
     if (validatedData.toAccount) {
       const toAccount = await prisma.account.findUnique({
-        where: { accountId: validatedData.toAccount }
+        where: { 
+          accountId: validatedData.toAccount,
+          userId: session.user.id
+       }
       })
       if (!toAccount) {
         return NextResponse.json({ error: 'To Account not found' }, { status: 404 })
@@ -81,7 +100,10 @@ export async function PUT(
     }
     
     const transfer = await prisma.transfer.update({
-      where: { transferId },
+      where: { 
+        transferId: transferId,
+        userId: session.user.id
+      },
       data: updateData,
       include: {
         fromAccount: true,
@@ -104,10 +126,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const transferId = parseInt(params.id)
     
     await prisma.transfer.delete({
-      where: { transferId }
+      where: { 
+        transferId: transferId,
+        userId: session.user.id }
     })
     
     return NextResponse.json({ message: 'Transfer deleted Successfully' })

@@ -26,7 +26,7 @@ export async function PUT(
     const account = await prisma.financeAccount.update({
       where: { 
         accountId: parseInt(params.id),
-        userId: session.user.id // Ensure user owns this account
+        userId: session.user.id
       },
       data: validatedData
     })
@@ -40,13 +40,6 @@ export async function PUT(
 
     return NextResponse.json(transformedAccount)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      )
-    }
-    
     console.error('Error updating account:', error)
     return NextResponse.json(
       { error: 'Failed to update account' },
@@ -68,7 +61,7 @@ export async function DELETE(
     await prisma.financeAccount.delete({
       where: { 
         accountId: parseInt(params.id),
-        userId: session.user.id // Ensure user owns this account
+        userId: session.user.id
       }
     })
 

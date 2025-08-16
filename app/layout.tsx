@@ -3,8 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
-import { SessionProvider } from '@/components/SessionProvider'
-import  StoreProvider  from './StoreProvider'
+import { SessionProvider } from '@/components/SessionProvider' // ✅ This import is correct
+import StoreProvider from './StoreProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 

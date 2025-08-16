@@ -17,6 +17,8 @@ async function main() {
     }
   })
 
+  console.log(`Created user: ${user.email}`)
+
   // Create demo accounts
   const checking = await prisma.financeAccount.create({
     data: {
@@ -36,6 +38,8 @@ async function main() {
     }
   })
 
+  console.log(`Created 2 accounts`)
+
   // Create demo income sources
   const salary = await prisma.incomeSource.create({
     data: {
@@ -54,7 +58,36 @@ async function main() {
     }
   })
 
+  console.log(`Created income and expense sources`)
+
+  // Create sample income
+  await prisma.income.create({
+    data: {
+      name: 'Monthly Salary',
+      amount: 4500,
+      date: new Date('2024-01-15'),
+      accountId: checking.id,
+      incomeSourceId: salary.id,
+      userId: user.id
+    }
+  })
+
+  // Create sample expense
+  await prisma.expense.create({
+    data: {
+      name: 'Weekly Groceries',
+      amount: 120,
+      date: new Date('2024-01-10'),
+      accountId: checking.id,
+      expenseSourceId: groceries.id,
+      userId: user.id
+    }
+  })
+
   console.log('Database seeded successfully!')
+  console.log('Demo user credentials:')
+  console.log('Email: demo@example.com')
+  console.log('Password: demo123')
 }
 
 main()

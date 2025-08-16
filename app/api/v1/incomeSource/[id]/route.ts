@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformIncomeSource } from '@/lib/transformers'
 import { z } from 'zod'
@@ -13,9 +15,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const incomeSourceId = parseInt(params.id)
     const incomeSource = await prisma.incomeSource.findUnique({
-      where: { incomeSourceId }
+      where: {
+         incomeSourceId : incomeSourceId,
+         userId: session.user.id
+        }
     })
     
     if (!incomeSource) {
@@ -34,12 +43,20 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const incomeSourceId = parseInt(params.id)
     const body = await request.json()
     const validatedData = incomeSourceUpdateSchema.parse(body)
     
     const incomeSource = await prisma.incomeSource.update({
-      where: { incomeSourceId },
+      where: {
+         incomeSourceId : incomeSourceId,
+         userId: session.user.id
+        },
       data: validatedData
     })
     
@@ -58,10 +75,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
     const incomeSourceId = parseInt(params.id)
     
     await prisma.incomeSource.delete({
-      where: { incomeSourceId }
+      where: {
+         incomeSourceId : incomeSourceId,
+         userId: session.user.id
+        }
     })
     
     return NextResponse.json({ message: 'Income Source deleted Successfully' })

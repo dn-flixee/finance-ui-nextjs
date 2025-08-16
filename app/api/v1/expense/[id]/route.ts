@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformExpense } from '@/lib/transformers'
 import { z } from 'zod'
@@ -16,9 +18,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseId = parseInt(params.id)
     const expense = await prisma.expense.findUnique({
-      where: { expenseId },
+      where: { 
+        expenseId: expenseId,
+        userId: session.user.id },
       include: {
         account: true,
         expenseSource: true
@@ -41,6 +49,10 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseId = parseInt(params.id)
     const body = await request.json()
     const validatedData = expenseUpdateSchema.parse(body)
@@ -53,7 +65,10 @@ export async function PUT(
     
     if (validatedData.accountName) {
       const account = await prisma.account.findUnique({
-        where: { name: validatedData.accountName }
+        where: { 
+          name: validatedData.accountName,
+          userId: session.user.id
+        }
       })
       if (!account) {
         return NextResponse.json({ error: 'Account not found' }, { status: 404 })
@@ -63,7 +78,10 @@ export async function PUT(
     
     if (validatedData.expenseSourceName) {
       const expenseSource = await prisma.expenseSource.findUnique({
-        where: { name: validatedData.expenseSourceName }
+        where: { 
+          name: validatedData.expenseSourceName,
+          userId: session.user.id
+         }
       })
       if (!expenseSource) {
         return NextResponse.json({ error: 'ExpenseSource not found' }, { status: 404 })
@@ -72,7 +90,9 @@ export async function PUT(
     }
     
     const expense = await prisma.expense.update({
-      where: { expenseId },
+      where: { 
+        expenseId: expenseId,
+        userId: session.user.id },
       data: updateData,
       include: {
         account: true,
@@ -95,10 +115,17 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseId = parseInt(params.id)
     
     await prisma.expense.delete({
-      where: { expenseId }
+      where: { 
+        expenseId: expenseId,
+        userId: session.user.id
+     }
     })
     
     return NextResponse.json({ message: 'Expense deleted Successfully' })

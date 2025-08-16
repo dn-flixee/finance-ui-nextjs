@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformExpenseSource } from '@/lib/transformers'
 import { z } from 'zod'
@@ -13,9 +15,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseSourceId = parseInt(params.id)
     const expenseSource = await prisma.expenseSource.findUnique({
-      where: { expenseSourceId }
+      where: {
+         expenseSourceId : expenseSourceId,
+         userId: session.user.id
+        }
     })
     
     if (!expenseSource) {
@@ -34,12 +43,19 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseSourceId = parseInt(params.id)
     const body = await request.json()
     const validatedData = expenseSourceUpdateSchema.parse(body)
     
     const expenseSource = await prisma.expenseSource.update({
-      where: { expenseSourceId },
+      where: { 
+        expenseSourceId : expenseSourceId,
+        userId: session.user.id
+       },
       data: validatedData
     })
     
@@ -58,10 +74,17 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const expenseSourceId = parseInt(params.id)
     
     await prisma.expenseSource.delete({
-      where: { expenseSourceId }
+      where: { 
+        expenseSourceId : expenseSourceId,
+        userId: session.user.id
+       }
     })
     
     return NextResponse.json({ message: 'Expense Source deleted Successfully' })

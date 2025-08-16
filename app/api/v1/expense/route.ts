@@ -38,16 +38,26 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const validatedData = expenseSchema.parse(body)
     
     // Find account and expense source
     const account = await prisma.account.findUnique({
-      where: { name: validatedData.accountName }
+      where: { 
+        name: validatedData.accountName,
+        userId: session.user.id
+      }
     })
     
     const expenseSource = await prisma.expenseSource.findUnique({
-      where: { name: validatedData.expenseSourceName }
+      where: { 
+        name: validatedData.expenseSourceName,
+        userId: session.user.id
+     }
     })
     
     if (!account || !expenseSource) {
@@ -63,7 +73,8 @@ export async function POST(request: NextRequest) {
         amount: validatedData.amount,
         date: new Date(validatedData.date),
         accountId: account.accountId,
-        expenseSourceId: expenseSource.expenseSourceId
+        expenseSourceId: expenseSource.expenseSourceId,
+        userId: session.user.id
       },
       include: {
         account: true,

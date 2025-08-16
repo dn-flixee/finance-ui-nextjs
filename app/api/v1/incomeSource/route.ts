@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformIncomeSource } from '@/lib/transformers'
 import { z } from 'zod'
@@ -10,10 +12,16 @@ const incomeSourceSchema = z.object({
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+        if (!session?.user) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
     const incomeSources = await prisma.incomeSource.findMany({
+      where: { userId: session.user.id },
       orderBy: { incomeSourceId: 'asc' }
     })
-    
+
     return NextResponse.json(incomeSources.map(transformIncomeSource))
   } catch (error) {
     console.error('Error fetching income sources:', error)
@@ -23,6 +31,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const validatedData = incomeSourceSchema.parse(body)
     

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const lastYear = new Date()
     lastYear.setFullYear(lastYear.getFullYear() - 1)
     
@@ -10,7 +16,8 @@ export async function GET() {
       where: {
         date: {
           gte: lastYear
-        }
+        },
+        userId: session.user.id
       },
       include: {
         expenseSource: true

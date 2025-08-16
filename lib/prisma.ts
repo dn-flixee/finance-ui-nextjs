@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+// Remove custom path - use default generated client
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
