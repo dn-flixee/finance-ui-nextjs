@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
     const validatedData = incomeSourceSchema.parse(body)
     
     const incomeSource = await prisma.incomeSource.create({
-      data: validatedData
+      data: {
+        name: validatedData.name,
+        goal: validatedData.goal,
+        userId: session.user.id
+      }
     })
     
     return NextResponse.json(transformIncomeSource(incomeSource), { status: 201 })

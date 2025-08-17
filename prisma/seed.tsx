@@ -66,8 +66,8 @@ async function main() {
       name: 'Monthly Salary',
       amount: 4500,
       date: new Date('2024-01-15'),
-      accountId: checking.id,
-      incomeSourceId: salary.id,
+      accountId: checking.accountId,
+      incomeSourceId: salary.incomeSourceId,
       userId: user.id
     }
   })
@@ -78,8 +78,8 @@ async function main() {
       name: 'Weekly Groceries',
       amount: 120,
       date: new Date('2024-01-10'),
-      accountId: checking.id,
-      expenseSourceId: groceries.id,
+      accountId: checking.accountId,
+      expenseSourceId: groceries.expenseSourceId,
       userId: user.id
     }
   })

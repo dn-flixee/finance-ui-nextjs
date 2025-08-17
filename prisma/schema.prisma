@@ -76,8 +76,7 @@ model User {
 
 // Finance models with user relationships
 model FinanceAccount {
-  id              String   @id @default(cuid())
-  accountId       Int      @unique @default(autoincrement()) // Keep for compatibility
+  accountId       String   @id @default(cuid()) // Primary key with cuid
   name            String
   startingBalance Float
   type            Float?
@@ -96,8 +95,7 @@ model FinanceAccount {
 }
 
 model IncomeSource {
-  id             String   @id @default(cuid())
-  incomeSourceId Int      @unique @default(autoincrement()) // Keep for compatibility
+  incomeSourceId String   @id @default(cuid()) // Primary key with cuid
   name           String
   goal           Float
   userId         String
@@ -112,8 +110,7 @@ model IncomeSource {
 }
 
 model ExpenseSource {
-  id              String   @id @default(cuid())
-  expenseSourceId Int      @unique @default(autoincrement()) // Keep for compatibility
+  expenseSourceId String   @id @default(cuid()) // Primary key with cuid
   name            String
   budget          Float
   userId          String
@@ -128,58 +125,55 @@ model ExpenseSource {
 }
 
 model Income {
-  id             String   @id @default(cuid())
-  incomeId       Int      @unique @default(autoincrement()) // Keep for compatibility
+  incomeId       String   @id @default(cuid()) // Primary key with cuid
   name           String
   amount         Float
   date           DateTime
-  accountId      String
-  incomeSourceId String
+  accountId      String   // References FinanceAccount.accountId
+  incomeSourceId String   // References IncomeSource.incomeSourceId
   userId         String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account      FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  incomeSource IncomeSource   @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+  account      FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  incomeSource IncomeSource   @relation(fields: [incomeSourceId], references: [incomeSourceId], onDelete: Cascade)
 
   @@map("incomes")
 }
 
 model Expense {
-  id              String   @id @default(cuid())
-  expenseId       Int      @unique @default(autoincrement()) // Keep for compatibility
+  expenseId       String   @id @default(cuid()) // Primary key with cuid
   name            String
   amount          Float
   date            DateTime
-  accountId       String
-  expenseSourceId String
+  accountId       String   // References FinanceAccount.accountId
+  expenseSourceId String   // References ExpenseSource.expenseSourceId
   userId          String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account       FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  expenseSource ExpenseSource  @relation(fields: [expenseSourceId], references: [id], onDelete: Cascade)
+  account       FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  expenseSource ExpenseSource  @relation(fields: [expenseSourceId], references: [expenseSourceId], onDelete: Cascade)
 
   @@map("expenses")
 }
 
 model Transfer {
-  id            String   @id @default(cuid())
-  transferId    Int      @unique @default(autoincrement()) // Keep for compatibility
+  transferId    String   @id @default(cuid()) // Primary key with cuid
   name          String
   amount        Float
   date          DateTime
-  fromAccountId String
-  toAccountId   String
+  fromAccountId String   // References FinanceAccount.accountId
+  toAccountId   String   // References FinanceAccount.accountId
   userId        String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fromAccount FinanceAccount @relation("FromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
-  toAccount   FinanceAccount @relation("ToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  fromAccount FinanceAccount @relation("FromAccount", fields: [fromAccountId], references: [accountId], onDelete: Cascade)
+  toAccount   FinanceAccount @relation("ToAccount", fields: [toAccountId], references: [accountId], onDelete: Cascade)
 
   @@map("transfers")
 }

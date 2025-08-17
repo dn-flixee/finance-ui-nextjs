@@ -12,7 +12,7 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const expenseSourceId = parseInt(params.expenseSourceId)
+    const expenseSourceId = params.expenseSourceId
     
     const result = await prisma.expense.aggregate({
       where: { 

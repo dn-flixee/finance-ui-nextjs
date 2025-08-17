@@ -3,27 +3,13 @@ import { createSlice } from "@reduxjs/toolkit";
 import { createAppAsyncThunk } from "@/lib/withTypes";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
+import { Income, CreateIncomeInput, UpdateIncomeInput } from "@/lib/types";
 
-export interface Income {
-    incomeId: number;
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    incomeSourceName: string;
-}
+
 interface IncomeState {
     incomes: Income[];
     status: "idle" | "loading" | "succeeded" | "failed";
     error: string | null;
-}
-
-interface NewIncome {
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    incomeSourceName: string;
 }
 
 const intialState: IncomeState = {
@@ -44,8 +30,8 @@ export const fetchIncomes = createAppAsyncThunk(
                 name: income.name,
                 amount: income.amount,
                 date: new Date(income.date),
-                accountName: income.accountName,
-                incomeSourceName: income.incomeSourceName,
+                accountId: income.accountId,
+                incomeSourceId: income.incomeSourceId,
             };
         });
     }
@@ -53,7 +39,7 @@ export const fetchIncomes = createAppAsyncThunk(
 
 export const saveIncome = createAppAsyncThunk(
     "income/saveIncomes",
-    async (income: NewIncome) => {
+    async (income: CreateIncomeInput) => {
         const res = await axios.post(INCOME_API_BASE_URL, income);
         return res.data;
     }
@@ -61,7 +47,7 @@ export const saveIncome = createAppAsyncThunk(
 
 export const updateIncome = createAppAsyncThunk(
     "income/updateIncome",
-    async (income: Income) => {
+    async (income: UpdateIncomeInput) => {
         const res = await axios.put(
             `${INCOME_API_BASE_URL}/${income.incomeId}`,
             income
@@ -71,7 +57,7 @@ export const updateIncome = createAppAsyncThunk(
 );
 export const deleteIncome = createAppAsyncThunk(
     "income/deleteIncome",
-    async (incomeid: number) => {
+    async (incomeid: string) => {
         console.log("Delete Income:")
         console.log(incomeid)
         const res = await axios.delete(`${INCOME_API_BASE_URL}/${incomeid}`);
@@ -109,8 +95,8 @@ export const incomeSlice = createSlice({
                 name: action.payload.name,
                 amount: action.payload.amount,
                 date: action.payload.date,
-                accountName: action.payload.accountName,
-                incomeSourceName: action.payload.incomeSourceName,
+                accountId: action.payload.accountId,
+                incomeSourceId: action.payload.incomeSourceId,
             });
             toast({
                 description: "Income saved successfully!",
@@ -127,15 +113,15 @@ export const incomeSlice = createSlice({
 
         // updateIncomes builder
         builder.addCase(updateIncome.fulfilled, (state, action) => {
-                (state.incomes = state.incomes.map((income) => {
+                (state.incomes = state.incomes.map((income:Income) => {
                     if (income.incomeId === action.payload.incomeId) {
                         return {
                             incomeId: action.payload.incomeId,
                             name: action.payload.name,
                             amount: action.payload.amount,
                             date: action.payload.date,
-                            accountName: action.payload.accountName,
-                            incomeSourceName: action.payload.incomeSourceName,
+                            accountId: action.payload.accountId,
+                            incomeSourceId: action.payload.incomeSourceId,
                         }
                     } else {
                         return {
@@ -143,8 +129,8 @@ export const incomeSlice = createSlice({
                             name: income.name,
                             amount: income.amount,
                             date: income.date,
-                            accountName: income.accountName,
-                            incomeSourceName: income.incomeSourceName,
+                            accountId: income.accountId,
+                            incomeSourceId: income.incomeSourceId,
                         }
 
                     }

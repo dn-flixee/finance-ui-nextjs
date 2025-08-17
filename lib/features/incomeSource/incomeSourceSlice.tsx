@@ -3,21 +3,13 @@ import { createSlice } from "@reduxjs/toolkit";
 import { createAppAsyncThunk } from "@/lib/withTypes";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
+import { IncomeSource,CreateIncomeSourceInput,UpdateIncomeSourceInput } from "@/lib/types";
 
-export interface IncomeSource {
-    incomeSourceId: number;
-    name: string;
-    goal: number;
-  }
+
 interface IncomeSourceState {
     incomeSources: IncomeSource[];
     status: "idle" | "loading" | "succeeded" | "failed";
     error: string | null;
-}
-
-interface NewIncomeSource {
-    name: string;
-    goal: number;
 }
 
 const intialState: IncomeSourceState = {
@@ -34,13 +26,19 @@ export const fetchIncomeSources = createAppAsyncThunk(
         const res = await axios.get(INCOME_SOURCE_API_BASE_URL);
         console.log("fetch income Source")
         console.log(res.data)
-        return res.data;
+        return res.data.map((incomeSource : IncomeSource) =>{
+            return {
+                incomeSourceId: incomeSource.incomeSourceId,
+                name: incomeSource.name,
+                goal: incomeSource.goal,
+            };
+        });
     }
 );
 
 export const saveIncomeSource = createAppAsyncThunk(
     "incomeSource/saveIncomeSources",
-    async (incomeSource: NewIncomeSource) => {
+    async (incomeSource: CreateIncomeSourceInput) => {
         const res = await axios.post(INCOME_SOURCE_API_BASE_URL,incomeSource);
         return res.data;
     }
@@ -48,7 +46,7 @@ export const saveIncomeSource = createAppAsyncThunk(
 
 export const updateIncomeSource = createAppAsyncThunk(
     "incomeSource/updateIncomeSource",
-    async (incomeSource: IncomeSource) => {
+    async (incomeSource: UpdateIncomeSourceInput) => {
         const res = await axios.put(
             `${INCOME_SOURCE_API_BASE_URL}/${incomeSource.incomeSourceId}`,
             incomeSource
@@ -58,7 +56,7 @@ export const updateIncomeSource = createAppAsyncThunk(
 );
 export const deleteIncomeSource = createAppAsyncThunk(
     "incomeSource/deleteIncomeSource",
-    async (incomeSourceid: number) => {
+    async (incomeSourceid: string) => {
         const res = await axios.delete(`${INCOME_SOURCE_API_BASE_URL}/${incomeSourceid}`);
         return incomeSourceid;
     }

@@ -19,7 +19,7 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const incomeSourceId = parseInt(params.id)
+    const incomeSourceId = params.id
     const incomeSource = await prisma.incomeSource.findUnique({
       where: {
          incomeSourceId : incomeSourceId,
@@ -48,7 +48,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const incomeSourceId = parseInt(params.id)
+    const incomeSourceId = params.id
     const body = await request.json()
     const validatedData = incomeSourceUpdateSchema.parse(body)
     
@@ -57,7 +57,10 @@ export async function PUT(
          incomeSourceId : incomeSourceId,
          userId: session.user.id
         },
-      data: validatedData
+      data: {
+        name: validatedData.name,
+        goal: validatedData.goal
+      }
     })
     
     return NextResponse.json(transformIncomeSource(incomeSource))
@@ -80,7 +83,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    const incomeSourceId = parseInt(params.id)
+    const incomeSourceId = params.id
     
     await prisma.incomeSource.delete({
       where: {

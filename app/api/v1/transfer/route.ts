@@ -9,8 +9,8 @@ const transferSchema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
   date: z.string().datetime().or(z.date()),
-  fromAccount: z.number().int().positive(),
-  toAccount: z.number().int().positive()
+  fromAccount: z.string().min(1),
+  toAccount: z.string().min(1)
 })
 
 export async function GET() {

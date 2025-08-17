@@ -10,8 +10,8 @@ export const transformAccount = (account: any) => ({
     name: expense.name,
     amount: expense.amount,
     date: expense.date,
-    accountName: expense.account?.name || '',
-    expenseSourceName: expense.expenseSource?.name || ''
+    accountId: expense.account?.accountId || '',
+    expenseSourceId: expense.expenseSource?.expenseSourceId || ''
   })
   
   export const transformIncome = (income: any) => ({
@@ -19,8 +19,8 @@ export const transformAccount = (account: any) => ({
     name: income.name,
     amount: income.amount,
     date: income.date,
-    accountName: income.account?.name || '',
-    incomeSourceName: income.incomeSource?.name || ''
+    accountId: income.account?.accountId || '',
+    incomeSourceId: income.incomeSource?.incomeSourceId || ''
   })
   
   export const transformExpenseSource = (expenseSource: any) => ({

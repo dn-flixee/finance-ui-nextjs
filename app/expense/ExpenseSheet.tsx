@@ -27,14 +27,14 @@ interface Expense {
   }
   
   interface Account {
-    accountId: number;
+    accountId: string;
     name: string;
     startingBalance: number;
     type: number;
   }
   
   interface ExpenseSource {
-    expenseSourceId: number;
+    expenseSourceId: string;
     name: string;
     budget: number;
   }
@@ -154,7 +154,7 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
                                   </FormControl>
                                   <SelectContent>
                                     {accountData && accountData.map((option,index) => (
-                                      <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                      <SelectItem key={index} value={option.accountId}>{option.name}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
@@ -177,7 +177,7 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
                                           </FormControl>
                                           <SelectContent>
                                           {expenseSourceData && expenseSourceData.map((option,index) =>(
-                                        <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                        <SelectItem key={index} value={option.expenseSourceId}>{option.name}</SelectItem>
                                       ))}
                                           </SelectContent>
                                         </Select>

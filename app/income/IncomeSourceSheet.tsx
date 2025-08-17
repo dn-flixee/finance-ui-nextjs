@@ -10,12 +10,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { deleteIncomeSource, saveIncomeSource, updateIncomeSource } from '@/lib/features/incomeSource/incomeSourceSlice'
 import { useAppDispatch } from '@/lib/hooks'
+import { IncomeSource } from '@/lib/types'
 
-interface IncomeSource {
-    incomeSourceId: number;
-    name: string;
-    goal: number;
-  }
 
 interface IncomeSourceSheetProps {
   isOpen: boolean;

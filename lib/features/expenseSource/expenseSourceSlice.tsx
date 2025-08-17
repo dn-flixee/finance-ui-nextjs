@@ -3,21 +3,12 @@ import { createSlice } from "@reduxjs/toolkit";
 import { createAppAsyncThunk } from "@/lib/withTypes";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
+import { ExpenseSource, CreateExpenseSourceInput } from "@/lib/types";
 
-export interface ExpenseSource {
-    expenseSourceId: number;
-    name: string;
-    budget: number;
-  }
 interface ExpenseSourceState {
     expenseSources: ExpenseSource[];
     status: "idle" | "loading" | "succeeded" | "failed";
     error: string | null;
-}
-
-interface NewExpenseSource {
-    name: string;
-    budget: number;
 }
 
 const intialState: ExpenseSourceState = {
@@ -40,7 +31,7 @@ export const fetchExpenseSources = createAppAsyncThunk(
 
 export const saveExpenseSource = createAppAsyncThunk(
     "expenseSource/saveExpenseSources",
-    async (expenseSource: NewExpenseSource) => {
+    async (expenseSource: CreateExpenseSourceInput) => {
         const res = await axios.post(EXPENSE_SOURCE_API_BASE_URL,expenseSource);
         return res.data;
     }
@@ -92,7 +83,10 @@ export const expenseSourceSlice = createSlice({
             state.expenseSources.push({
                 expenseSourceId: action.payload.expenseSourceId,
                 name: action.payload.name,
-                budget : action.payload.budget
+                budget: action.payload.budget,
+                userId: action.payload.userId,
+                createdAt: action.payload.createdAt,
+                updatedAt: action.payload.updatedAt
             });
             toast({
                 description: "Expense Source saved successfully!",

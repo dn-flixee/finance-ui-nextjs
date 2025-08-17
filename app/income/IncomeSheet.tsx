@@ -54,32 +54,11 @@ import {
   deleteIncome,
   saveIncome,
 } from "@/lib/features/income/incomeSlice";
-
-interface Income {
-  incomeId: number;
-  name: string;
-  amount: number;
-  date: Date;
-  accountName: string;
-  incomeSourceName: string;
-}
-
-interface Account {
-  accountId: number;
-  name: string;
-  startingBalance: number;
-  type: number;
-}
-
-interface IncomeSource {
-  incomeSourceId: number;
-  name: string;
-  goal: number;
-}
+import { Income, IncomeSource, FinanceAccount } from "@/lib/types";
 
 interface IncomeSheetProps {
   incomeSourceData: IncomeSource[];
-  accountData: Account[];
+  accountData: FinanceAccount[];
   isOpen: boolean;
   onClose: () => void;
   incomeToEdit: Income | null;
@@ -98,14 +77,14 @@ function IncomeSheet({
     if (incomeToEdit) {
       form.setValue("amount", incomeToEdit.amount);
       form.setValue("name", incomeToEdit.name);
-      form.setValue("accountName", incomeToEdit.accountName);
-      form.setValue("incomeSourceName", incomeToEdit.incomeSourceName);
+      form.setValue("accountId", incomeToEdit.accountId);
+      form.setValue("incomeSourceId", incomeToEdit.incomeSourceId);
       form.setValue("date", incomeToEdit.date);
     } else {
       form.setValue("amount", 0);
       form.setValue("name", "");
-      form.setValue("accountName", "");
-      form.setValue("incomeSourceName", "");
+      form.setValue("accountId", "");
+      form.setValue("incomeSourceId", "");
       form.setValue("date", new Date());
     }
   }, [incomeToEdit]);
@@ -113,8 +92,8 @@ function IncomeSheet({
   const addIncome = z.object({
     amount: z.coerce.number().positive(),
     name: z.string().min(1).max(255),
-    accountName: z.string().min(1).max(255),
-    incomeSourceName: z.string().min(1).max(255),
+    accountId: z.string().min(1).max(255),
+    incomeSourceId: z.string().min(1).max(255),
     date: z.date({
       required_error: "Please select a date and time",
       invalid_type_error: "That's not a date!",
@@ -134,8 +113,8 @@ function IncomeSheet({
         name: values.name,
         amount: values.amount,
         date: values.date,
-        accountName: values.accountName,
-        incomeSourceName: values.incomeSourceName,
+        accountId: values.accountId,
+        incomeSourceId: values.incomeSourceId,
       }));
     } else {
       dispatch(saveIncome(values));
@@ -191,65 +170,89 @@ function IncomeSheet({
 
             <FormField
               control={form.control}
-              name="accountName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Account</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            incomeToEdit ? incomeToEdit.accountName : "Account"
-                          }
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {accountData &&
-                        accountData.map((option, index) => (
-                          <SelectItem key={index} value={option.name}>
-                            {option.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              name="accountId"
+              render={({ field }) => {
+                // Find the selected account name
+                const selectedAccount = accountData?.find(acc => acc.accountId === field.value);
+                const displayValue = selectedAccount?.name || "";
+                console.log("display valiue",displayValue)
+
+                
+                return (
+                  <FormItem>
+                    <FormLabel>Account</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange}
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Account">
+                            {displayValue && <span>{displayValue}</span>}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {accountData &&
+                          accountData.map((option) => (
+                            <SelectItem key={option.accountId} value={option.accountId}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{option.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
               control={form.control}
-              name="incomeSourceName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Income Source</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            incomeToEdit
-                              ? incomeToEdit.incomeSourceName
-                              : "Income Source"
-                          }
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {incomeSourceData &&
-                        incomeSourceData.map((option, index) => (
-                          <SelectItem key={index} value={option.name}>
-                            {option.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              name="incomeSourceId"
+              render={({ field }) => {
+                // Find the selected income source name
+                const selectedIncomeSource = incomeSourceData?.find(
+                  source => source.incomeSourceId === field.value
+                );
+                const displayValue = selectedIncomeSource?.name || "";
+                console.log("display valiue",field.value)
+                return (
+                  <FormItem>
+                    <FormLabel>Income Source</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange}
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Account">
+                            {displayValue && <span>{displayValue}</span>}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {incomeSourceData &&
+                          incomeSourceData.map((option) => (
+                            <SelectItem 
+                              key={option.incomeSourceId} 
+                              value={option.incomeSourceId} // Store ID, not name
+                            >
+                               <div className="flex flex-col">
+                                <span className="font-medium">{option.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
+
 
             <FormField
               control={form.control}

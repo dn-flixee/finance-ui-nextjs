@@ -22,7 +22,7 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const transferId = parseInt(params.id)
+    const transferId = params.id
     const transfer = await prisma.transfer.findUnique({
       where: { 
         transferId: transferId,
@@ -54,7 +54,7 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const transferId = parseInt(params.id)
+    const transferId = params.id
     const body = await request.json()
     const validatedData = transferUpdateSchema.parse(body)
     
@@ -130,7 +130,7 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const transferId = parseInt(params.id)
+    const transferId = params.id
     
     await prisma.transfer.delete({
       where: { 

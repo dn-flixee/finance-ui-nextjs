@@ -9,8 +9,8 @@ const expenseSchema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
   date: z.string().datetime().or(z.date()),
-  accountName: z.string().min(1),
-  expenseSourceName: z.string().min(1)
+  accountId: z.string().min(1),
+  expenseSourceId: z.string().min(1)
 })
 
 export async function GET() {
@@ -45,35 +45,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = expenseSchema.parse(body)
     
-    // Find account and expense source
-    const account = await prisma.account.findUnique({
-      where: { 
-        name: validatedData.accountName,
-        userId: session.user.id
-      }
-    })
-    
-    const expenseSource = await prisma.expenseSource.findUnique({
-      where: { 
-        name: validatedData.expenseSourceName,
-        userId: session.user.id
-     }
-    })
-    
-    if (!account || !expenseSource) {
-      return NextResponse.json(
-        { error: 'Account or ExpenseSource not found' },
-        { status: 404 }
-      )
-    }
-    
     const expense = await prisma.expense.create({
       data: {
         name: validatedData.name,
         amount: validatedData.amount,
         date: new Date(validatedData.date),
-        accountId: account.accountId,
-        expenseSourceId: expenseSource.expenseSourceId,
+        accountId: validatedData.accountId,
+        expenseSourceId: validatedData.expenseSourceId,
         userId: session.user.id
       },
       include: {

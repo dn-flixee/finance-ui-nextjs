@@ -19,7 +19,7 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const expenseSourceId = parseInt(params.id)
+    const expenseSourceId = params.id
     const expenseSource = await prisma.expenseSource.findUnique({
       where: {
          expenseSourceId : expenseSourceId,
@@ -47,7 +47,7 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const expenseSourceId = parseInt(params.id)
+    const expenseSourceId = params.id
     const body = await request.json()
     const validatedData = expenseSourceUpdateSchema.parse(body)
     
@@ -78,7 +78,7 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const expenseSourceId = parseInt(params.id)
+    const expenseSourceId = params.id
     
     await prisma.expenseSource.delete({
       where: { 

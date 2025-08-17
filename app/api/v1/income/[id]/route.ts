@@ -3,13 +3,14 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { transformIncome } from '@/lib/transformers'
 
 const updateIncomeSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   amount: z.number().positive().optional(),
   date: z.string().datetime().or(z.date()).optional(),
-  accountName: z.string().optional(),
-  incomeSourceName: z.string().optional(),
+  accountId: z.string().optional(),
+  incomeSourceId: z.string().optional(),
 })
 
 export async function PUT(
@@ -25,55 +26,19 @@ export async function PUT(
     const body = await request.json()
     const validatedData = updateIncomeSchema.parse(body)
     
-    // Build update data
-    const updateData: any = {}
-    
-    if (validatedData.name) updateData.name = validatedData.name
-    if (validatedData.amount) updateData.amount = validatedData.amount
-    if (validatedData.date) updateData.date = new Date(validatedData.date)
-    
-    if (validatedData.accountName) {
-      const account = await prisma.financeAccount.findFirst({
-        where: { 
-          name: validatedData.accountName,
-          userId: session.user.id 
-        }
-      })
-      if (account) updateData.accountId = account.id
-    }
-    
-    if (validatedData.incomeSourceName) {
-      const incomeSource = await prisma.incomeSource.findFirst({
-        where: { 
-          name: validatedData.incomeSourceName,
-          userId: session.user.id 
-        }
-      })
-      if (incomeSource) updateData.incomeSourceId = incomeSource.id
-    }
-    
     const income = await prisma.income.update({
       where: { 
-        incomeId: parseInt(params.id),
+        incomeId: params.id,
         userId: session.user.id
       },
-      data: updateData,
+      data: validatedData,
       include: {
         account: true,
         incomeSource: true
       }
     })
 
-    const transformedIncome = {
-      incomeId: income.incomeId,
-      name: income.name,
-      amount: income.amount,
-      date: income.date,
-      accountName: income.account.name,
-      incomeSourceName: income.incomeSource.name
-    }
-
-    return NextResponse.json(transformedIncome)
+    return NextResponse.json(transformIncome(income))
   } catch (error) {
     console.error('Error updating income:', error)
     return NextResponse.json(
@@ -95,7 +60,7 @@ export async function DELETE(
 
     await prisma.income.delete({
       where: { 
-        incomeId: parseInt(params.id),
+        incomeId: params.id,
         userId: session.user.id
       }
     })
