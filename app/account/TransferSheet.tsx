@@ -36,8 +36,7 @@ interface Transfer {
 
   function TransferSheet({ isOpen, onClose, transferToEdit = null }: { isOpen: boolean; onClose: () => void; transferToEdit: Transfer | null }) {
 
-    const dispatch = useAppDispatch();
-    const accounts = useAppSelector(selectAccounts)
+    const dispatch = useAppDispatch()
   
     useEffect(() => {
       if (transferToEdit) {

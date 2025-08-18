@@ -23,7 +23,6 @@ export interface FinanceAccount {
   updatedAt?: Date;
 }
 
-// Income Source types
 export interface IncomeSource {
   incomeSourceId: string;
   name: string;
