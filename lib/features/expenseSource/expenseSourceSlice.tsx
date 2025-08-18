@@ -25,7 +25,13 @@ export const fetchExpenseSources = createAppAsyncThunk(
         const res = await axios.get(EXPENSE_SOURCE_API_BASE_URL);
         console.log("fetch expense Source")
         console.log(res.data)
-        return res.data;
+        return res.data.map((expenseSource : ExpenseSource)=>{
+            return {
+                expenseSourceId: expenseSource.expenseSourceId,
+                name: expenseSource.name,
+                budget: expenseSource.budget
+            }
+        })
     }
 );
 
@@ -49,7 +55,7 @@ export const updateExpenseSource = createAppAsyncThunk(
 );
 export const deleteExpenseSource = createAppAsyncThunk(
     "expenseSource/deleteExpenseSource",
-    async (expenseSourceid: number) => {
+    async (expenseSourceid: string) => {
         const res = await axios.delete(`${EXPENSE_SOURCE_API_BASE_URL}/${expenseSourceid}`);
         return expenseSourceid;
     }

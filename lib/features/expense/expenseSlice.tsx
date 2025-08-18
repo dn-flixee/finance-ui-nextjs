@@ -3,27 +3,12 @@ import { createSlice } from "@reduxjs/toolkit";
 import { createAppAsyncThunk } from "@/lib/withTypes";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
+import { Expense, CreateExpenseInput, UpdateExpenseInput } from "@/lib/types";
 
-export interface Expense {
-    expenseId: number;
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    expenseSourceName: string;
-}
 interface ExpenseState {
     expenses: Expense[];
     status: "idle" | "loading" | "succeeded" | "failed";
     error: string | null;
-}
-
-interface NewExpense {
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    expenseSourceName: string;
 }
 
 const intialState: ExpenseState = {
@@ -44,8 +29,8 @@ export const fetchExpenses = createAppAsyncThunk(
                 name: expense.name,
                 amount: expense.amount,
                 date: new Date(expense.date),
-                accountName: expense.accountName,
-                expenseSourceName: expense.expenseSourceName,
+                accountId: expense.accountId,
+                expenseSourceId: expense.expenseSourceId,
             };
         });
     }
@@ -53,7 +38,7 @@ export const fetchExpenses = createAppAsyncThunk(
 
 export const saveExpense = createAppAsyncThunk(
     "expense/saveExpenses",
-    async (expense: NewExpense) => {
+    async (expense: CreateExpenseInput) => {
         const res = await axios.post(EXPENSE_API_BASE_URL, expense);
         return res.data;
     }
@@ -61,7 +46,7 @@ export const saveExpense = createAppAsyncThunk(
 
 export const updateExpense = createAppAsyncThunk(
     "expense/updateExpense",
-    async (expense: Expense) => {
+    async (expense: UpdateExpenseInput) => {
         const res = await axios.put(
             `${EXPENSE_API_BASE_URL}/${expense.expenseId}`,
             expense
@@ -71,7 +56,7 @@ export const updateExpense = createAppAsyncThunk(
 );
 export const deleteExpense = createAppAsyncThunk(
     "expense/deleteExpense",
-    async (expenseid: number) => {
+    async (expenseid: string) => {
         console.log("Delete Expense:")
         console.log(expenseid)
         const res = await axios.delete(`${EXPENSE_API_BASE_URL}/${expenseid}`);
@@ -109,8 +94,8 @@ export const expenseSlice = createSlice({
                 name: action.payload.name,
                 amount: action.payload.amount,
                 date: action.payload.date,
-                accountName: action.payload.accountName,
-                expenseSourceName: action.payload.expenseSourceName,
+                accountId: action.payload.accountId,
+                expenseSourceId: action.payload.expenseSourceId,
             });
             toast({
                 description: "Expense saved successfully!",
@@ -134,8 +119,8 @@ export const expenseSlice = createSlice({
                             name: action.payload.name,
                             amount: action.payload.amount,
                             date: action.payload.date,
-                            accountName: action.payload.accountName,
-                            expenseSourceName: action.payload.expenseSourceName,
+                            accountId: action.payload.accountId,
+                            expenseSourceId: action.payload.expenseSourceId,
                         }
                     } else {
                         return {
@@ -143,8 +128,8 @@ export const expenseSlice = createSlice({
                             name: expense.name,
                             amount: expense.amount,
                             date: expense.date,
-                            accountName: expense.accountName,
-                            expenseSourceName: expense.expenseSourceName,
+                            accountId: expense.accountId,
+                            expenseSourceId: expense.expenseSourceId,
                         }
 
                     }

@@ -81,7 +81,7 @@ function IncomeSheet({
       form.setValue("incomeSourceId", incomeToEdit.incomeSourceId);
       form.setValue("date", incomeToEdit.date);
     } else {
-      form.setValue("amount", 0);
+      form.resetField("amount");
       form.setValue("name", "");
       form.setValue("accountId", "");
       form.setValue("incomeSourceId", "");
@@ -90,7 +90,7 @@ function IncomeSheet({
   }, [incomeToEdit]);
 
   const addIncome = z.object({
-    amount: z.coerce.number().positive(),
+    amount: z.coerce.number().min(0),
     name: z.string().min(1).max(255),
     accountId: z.string().min(1).max(255),
     incomeSourceId: z.string().min(1).max(255),
@@ -176,8 +176,6 @@ function IncomeSheet({
                 const selectedAccount = accountData?.find(acc => acc.accountId === field.value);
                 const displayValue = selectedAccount?.name || "";
                 console.log("display valiue",displayValue)
-
-                
                 return (
                   <FormItem>
                     <FormLabel>Account</FormLabel>

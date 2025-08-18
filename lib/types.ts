@@ -17,12 +17,13 @@ export interface FinanceAccount {
   accountId: string;
   name: string;
   startingBalance: number;
-  type?: number;
+  type: number;
   userId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
+// Income Source types
 export interface IncomeSource {
   incomeSourceId: string;
   name: string;
@@ -37,7 +38,7 @@ export interface ExpenseSource {
   expenseSourceId: string;
   name: string;
   budget: number;
-  userId: string;
+  userId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -63,7 +64,7 @@ export interface Expense {
   date: Date;
   accountId: string;
   expenseSourceId: string;
-  userId: string;
+  userId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -76,7 +77,7 @@ export interface Transfer {
   date: Date;
   fromAccountId: string;
   toAccountId: string;
-  userId: string;
+  userId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -130,7 +131,7 @@ export interface CreateFinanceAccountInput {
 }
 
 export interface UpdateFinanceAccountInput {
-  accountID: string;
+  accountId: string;
   name?: string;
   startingBalance?: number;
   type?: number;

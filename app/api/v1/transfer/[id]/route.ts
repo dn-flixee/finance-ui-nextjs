@@ -9,10 +9,9 @@ const transferUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   amount: z.number().positive().optional(),
   date: z.string().datetime().or(z.date()).optional(),
-  fromAccount: z.number().int().positive().optional(),
-  toAccount: z.number().int().positive().optional()
+  fromAccountId: z.string().min(1),
+  toAccountId: z.string().min(1)
 })
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -29,8 +28,8 @@ export async function GET(
         userId: session.user.id 
       },
       include: {
-        fromAccount: true,
-        toAccount: true
+        fromAccountId: true,
+        toAccountId: true
       }
     })
     
@@ -63,36 +62,36 @@ export async function PUT(
     if (validatedData.name) updateData.name = validatedData.name
     if (validatedData.amount) updateData.amount = validatedData.amount
     if (validatedData.date) updateData.date = new Date(validatedData.date)
-    if (validatedData.fromAccount) updateData.fromAccountId = validatedData.fromAccount
-    if (validatedData.toAccount) updateData.toAccountId = validatedData.toAccount
+    if (validatedData.fromAccountId) updateData.fromAccountIdId = validatedData.fromAccountId
+    if (validatedData.toAccountId) updateData.toAccountIdId = validatedData.toAccountId
     
     // Validate accounts exist if being updated
-    if (validatedData.fromAccount) {
-      const fromAccount = await prisma.account.findUnique({
+    if (validatedData.fromAccountId) {
+      const fromAccountId = await prisma.financeAccount.findUnique({
         where: { 
-          accountId: validatedData.fromAccount,
+          accountId: validatedData.fromAccountId,
           userId: session.user.id
          }
       })
-      if (!fromAccount) {
+      if (!fromAccountId) {
         return NextResponse.json({ error: 'From Account not found' }, { status: 404 })
       }
     }
     
-    if (validatedData.toAccount) {
-      const toAccount = await prisma.account.findUnique({
+    if (validatedData.toAccountId) {
+      const toAccountId = await prisma.account.findUnique({
         where: { 
-          accountId: validatedData.toAccount,
+          accountId: validatedData.toAccountId,
           userId: session.user.id
        }
       })
-      if (!toAccount) {
+      if (!toAccountId) {
         return NextResponse.json({ error: 'To Account not found' }, { status: 404 })
       }
     }
     
-    if (validatedData.fromAccount && validatedData.toAccount && 
-        validatedData.fromAccount === validatedData.toAccount) {
+    if (validatedData.fromAccountId && validatedData.toAccountId && 
+        validatedData.fromAccountId === validatedData.toAccountId) {
       return NextResponse.json(
         { error: 'From Account and To Account cannot be the same' },
         { status: 400 }
@@ -106,8 +105,8 @@ export async function PUT(
       },
       data: updateData,
       include: {
-        fromAccount: true,
-        toAccount: true
+        fromAccountId: true,
+        toAccountId: true
       }
     })
     

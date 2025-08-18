@@ -4,13 +4,14 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformTransfer } from '@/lib/transformers'
 import { z } from 'zod'
+import { CornerDownLeft } from 'lucide-react'
 
 const transferSchema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
   date: z.string().datetime().or(z.date()),
-  fromAccount: z.string().min(1),
-  toAccount: z.string().min(1)
+  fromAccountId: z.string().min(1),
+  toAccountId: z.string().min(1)
 })
 
 export async function GET() {
@@ -27,7 +28,7 @@ export async function GET() {
       },
       orderBy: { transferId: 'asc' }
     })
-    
+    console.log(transfers)
     return NextResponse.json(transfers.map(transformTransfer))
   } catch (error) {
     console.error('Error fetching transfers:', error)
@@ -43,19 +44,21 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json()
     const validatedData = transferSchema.parse(body)
+
+    console.log("dsa", validatedData)
     
     // Verify both accounts exist
-    const fromAccount = await prisma.account.findUnique({
+    const fromAccount = await prisma.financeAccount.findUnique({
       where: { 
-        accountId: validatedData.fromAccount,
+        accountId: validatedData.fromAccountId,
         userId: session.user.id 
       }
        
     })
     
-    const toAccount = await prisma.account.findUnique({
+    const toAccount = await prisma.financeAccount.findUnique({
       where: { 
-        accountId: validatedData.toAccount,
+        accountId: validatedData.toAccountId,
         userId: session.user.id 
       }
     })
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    if (validatedData.fromAccount === validatedData.toAccount) {
+    if (validatedData.fromAccountId === validatedData.toAccountId) {
       return NextResponse.json(
         { error: 'From Account and To Account cannot be the same' },
         { status: 400 }
@@ -79,8 +82,8 @@ export async function POST(request: NextRequest) {
         name: validatedData.name,
         amount: validatedData.amount,
         date: new Date(validatedData.date),
-        fromAccountId: validatedData.fromAccount,
-        toAccountId: validatedData.toAccount,
+        fromAccountId: validatedData.fromAccountId,
+        toAccountId: validatedData.toAccountId,
         userId: session.user.id
       },
       include: {

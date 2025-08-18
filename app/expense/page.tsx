@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { useToast } from '@/components/ui/use-toast'
 import ExpenseSheet from './ExpenseSheet'
 import ExpenseSourceSheet from './ExpenseSourceSheet'
 import NavBar from '@/components/NavBar'
@@ -12,27 +11,9 @@ import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import { fetchExpenses, selectExpenses } from '@/lib/features/expense/expenseSlice'
 import { fetchExpenseSources, selectExpenseSources } from '@/lib/features/expenseSource/expenseSourceSlice'
 import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
+import { Expense, ExpenseSource, FinanceAccount } from '@/lib/types'
 
-interface Expense {
-    expenseId: number;
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    expenseSourceName: string;
-  }
-interface ExpenseSource {
-    expenseSourceId: number;
-    name: string;
-    budget: number;
-}
-  
-interface Account {
-    accountId: number;
-    name: string;
-    startingBalance: number;
-    type: number;
-}
+
   
 export default function Component() {
 
@@ -106,7 +87,7 @@ export default function Component() {
 
   const filteredExpenseSource = expenseSources.expenseSources.map(source => {
     const totalExpense = filteredExpense
-      .filter(expense => expense.expenseSourceName === source.name)
+      .filter(expense => expense.expenseSourceId === source.name)
       .reduce((sum, expense) => sum + expense.amount, 0)
     return {
       ...source,
@@ -127,6 +108,10 @@ export default function Component() {
     )
 );
  console.log(new Date())
+
+const getAccountName = (accountId: string): string => {
+  return accounts.accounts.find(acc => acc.accountId === accountId)?.name || '';
+};
 
   const months = [
     { value: 0, label: 'January' },
@@ -207,7 +192,7 @@ export default function Component() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span>₹ {expense.amount}</span>
-                    <span className="text-red-500">{expense.accountName}</span>
+                    <span className="text-red-500">{ getAccountName( expense.accountId) }</span>
                   </div>
                 </div>
               ))

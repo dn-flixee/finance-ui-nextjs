@@ -10,12 +10,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { deleteExpenseSource, saveExpenseSource, updateExpenseSource } from '@/lib/features/expenseSource/expenseSourceSlice'
 import { useAppDispatch } from '@/lib/hooks'
+import { ExpenseSource } from '@/lib/types'
 
-interface ExpenseSource {
-    expenseSourceId: number;
-    name: string;
-    budget: number;
-  }
 
 interface ExpenseSourceSheetProps {
   isOpen: boolean;
@@ -33,7 +29,7 @@ function ExpenseSourceSheet({ isOpen, onClose, expenseSourceToEdit }: ExpenseSou
         form.setValue("budget", expenseSourceToEdit.budget);
     } else {
         form.setValue("name", "");
-        form.setValue("budget", 0);
+        form.resetField("budget");
         
     }
   }, [expenseSourceToEdit])
@@ -41,7 +37,7 @@ function ExpenseSourceSheet({ isOpen, onClose, expenseSourceToEdit }: ExpenseSou
   
   const addExpenseSource = z.object({
     name: z.string().min(1).max(255),
-    budget: z.coerce.number().positive()
+    budget: z.coerce.number().min(0)
   })
 
   function handleSubmit(values: z.infer<typeof addExpenseSource>) {

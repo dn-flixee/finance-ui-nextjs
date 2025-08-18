@@ -13,71 +13,36 @@ import NavBar from '@/components/NavBar'
 import { selectIncomes, fetchIncomes,  } from '@/lib/features/income/incomeSlice'
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import { fetchIncomeSources, selectIncomeSources } from '@/lib/features/incomeSource/incomeSourceSlice'
+import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
+import { Income, IncomeSource } from '@/lib/types'
 
-interface Income {
-    incomeId: number;
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    incomeSourceName: string;
-  }
-interface IncomeSource {
-    incomeSourceId: number;
-    name: string;
-    goal: number;
-}
-  
-interface Account {
-    accountId: number;
-    name: string;
-    startingBalance: number;
-    type: number;
-}
   
 export default function Component() {
 
   const incomes = useAppSelector(selectIncomes)
   const incomeSources = useAppSelector(selectIncomeSources)
+  const accounts = useAppSelector(selectAccounts)
   const dispatch = useAppDispatch()
 
-    const date = new Date();
-    const [accountData,setAccountData] = useState<Account[]>([])
-    const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
-    const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
-    const [isIncomeSheetOpen, setIsIncomeSheetOpen] = useState(false)
-    const [selectedIncome, setSelectedIncome] = useState<Income | null>(null)
-    const [isIncomeSourceSheetOpen, setIsIncomeSourceSheetOpen] = useState(false)
-    const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null)
-    const { toast } = useToast()
+  const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
+  const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
+  const [isIncomeSheetOpen, setIsIncomeSheetOpen] = useState(false)
+  const [selectedIncome, setSelectedIncome] = useState<Income | null>(null)
+  const [isIncomeSourceSheetOpen, setIsIncomeSourceSheetOpen] = useState(false)
+  const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null)
+
   useEffect(() => {
-
     if(incomes.status === 'idle'){
-      dispatch(fetchIncomes()).then(
-        (Response)=>{
-          console.log("fetchIncomes")
-          console.log(Response.payload)
-      })
+      dispatch(fetchIncomes())
     }
-
-    AccountService.getAccount()
-    .then((Response)=>{
-      console.log("account name")
-      console.log(Response.data)
-      setAccountData(Response.data)
-    }).catch( error =>{
-      console.log(error);
-      toast({
-        variant: "destructive",
-        duration:5000,
-      title: "Uh oh! Something went wrong.",
-      description: "There was a problem with fetching account data.",
-      })
-    })
   }, [dispatch,incomes.status]);
+  useEffect(()=>{
+        if(accounts.status === 'idle'){
+          dispatch(fetchAccounts())
+        }
+      },[dispatch,accounts.status])
 
   useEffect(()=>{
-    console.log('Use Effert')
     if(incomeSources.status === 'idle'){
       dispatch(fetchIncomeSources())
     }
@@ -110,7 +75,7 @@ export default function Component() {
 
   const filteredIncomeSource = incomeSources.incomeSources.map(source => {
     const totalIncome = filteredIncome
-      .filter(income => income.incomeSourceName === source.name)
+      .filter(income => income.incomeSourceId === source.incomeSourceId)
       .reduce((sum, income) => sum + income.amount, 0)
     return {
       ...source,
@@ -283,7 +248,7 @@ export default function Component() {
           </CardContent>
         </Card>
       </main>
-      <IncomeSheet incomeSourceData={incomeSources.incomeSources} accountData={accountData} isOpen={isIncomeSheetOpen} onClose={closeIncomeSheet} incomeToEdit={selectedIncome} />
+      <IncomeSheet incomeSourceData={incomeSources.incomeSources} accountData={accounts.accounts} isOpen={isIncomeSheetOpen} onClose={closeIncomeSheet} incomeToEdit={selectedIncome} />
       <IncomeSourceSheet isOpen={isIncomeSourceSheetOpen} onClose={closeIncomeSourceSheet} incomeSourceToEdit={selectedIncomeSource} />
     </div>
     </>

@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle,SheetFooter } from "@/components/ui/sheet"
@@ -13,52 +13,40 @@ import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover
 import { CalendarIcon } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { deleteTransfer, saveTransfer, updateTransfer } from '@/lib/features/transfer/transferSlice'
-import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { useAppDispatch } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
-import { selectAccounts } from '@/lib/features/account/accountSlice'
+import { Transfer,FinanceAccount } from '@/lib/types'
 
-interface Transfer {
-    transferId: number;
-    name: string;
-    fromAccount: number;
-    toAccount: number;
-    amount: number;
-    date: Date;
-}
 
-  interface Account {
-    accountId: number;
-    name: string;
-    startingBalance: number;
-    type: number;
-  }
-
-  function TransferSheet({ isOpen, onClose, transferToEdit = null }: { isOpen: boolean; onClose: () => void; transferToEdit: Transfer | null }) {
+  function TransferSheet({ isOpen, onClose, transferToEdit = null ,accountData}: { isOpen: boolean; onClose: () => void; transferToEdit: Transfer | null ; accountData : FinanceAccount[] | null}) {
 
     const dispatch = useAppDispatch()
   
     useEffect(() => {
       if (transferToEdit) {
-        form.setValue("name",transferToEdit.name)
-        form.setValue("fromAccount",transferToEdit.fromAccount)
-        form.setValue("toAccount",transferToEdit.toAccount)
-        form.setValue("amount",transferToEdit.amount)
-        form.setValue("date",transferToEdit.date)
+        form.reset({
+          name: transferToEdit.name,
+          fromAccountId: transferToEdit.fromAccountId,
+          toAccountId: transferToEdit.toAccountId,
+          amount: transferToEdit.amount,
+          date: new Date(transferToEdit.date) // Ensure it's a Date object
+        });
+        console.log(transferToEdit)
       } else {
         form.setValue("name","")
-        form.setValue("fromAccount",0)
-        form.setValue("toAccount",0)
-        form.setValue("amount",0)
+        form.setValue("fromAccountId","")
+        form.setValue("toAccountId","")
+        form.resetField("amount")
         form.setValue("date",new Date())
       }
-    }, [transferToEdit])
+    }, [transferToEdit]);
 
     const addTransfer = z.object({
       name: z.string().min(1).max(255),
-      fromAccount: z.string().min(1).max(255),
-      toAccount: z.string().min(1).max(255),
-      amount: z.coerce.number().positive(),
+      fromAccountId: z.string().min(1).max(255),
+      toAccountId: z.string().min(1).max(255),
+      amount: z.coerce.number().min(0),
       date: z.date({
           required_error: "Please select a date and time",
           invalid_type_error: "That's not a date!",
@@ -77,8 +65,8 @@ interface Transfer {
               transferId: transferToEdit.transferId,
               name: values.name,
               amount: values.amount,
-              fromAccount: values.fromAccount,
-              toAccount: values.toAccount,
+              fromAccountId: values.fromAccountId,
+              toAccountId: values.toAccountId,
               date: values.date
             }))
           }else{
@@ -128,47 +116,69 @@ interface Transfer {
                           
                           <FormField
                             control={form.control}
-                            name="fromAccount"
-                            render={({ field }) => (
+                            name="fromAccountId"
+                            render={({ field }) => {
+                              const selectedAccount = accountData?.find(account => account.accountId === field.value);
+                              const displayValue = selectedAccount?.name || "";
+                              console.log("dsa",field.value)
+                              return(
                               <FormItem>
                                 <FormLabel>Account From</FormLabel>
-                                <Select onValueChange={field.onChange} >
+                                <Select onValueChange={field.onChange} 
+                                value={field.value || ""}>
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={transferToEdit? transferToEdit.fromAccount : "Account"} />
+                                      <SelectValue placeholder="Select Account">
+                                        {displayValue && <span>{displayValue}</span>}
+                                      </SelectValue>
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {accounts.accounts && accounts.accounts.map((option,index) => (
-                                      <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                    {accountData && accountData.map((option) => (
+                                      <SelectItem key={option.accountId} value={option.accountId}>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{option.name}</span>
+                                        </div>
+                                      </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
                               </FormItem>
-                            )}
+                            )}}
                           />
                           <FormField
                             control={form.control}
-                            name="toAccount"
-                            render={({ field }) => (
+                            name="toAccountId"
+                            render={({ field }) => {
+                              const selectedAccount = accountData?.find(account => account.accountId === field.value);
+                              const displayValue = selectedAccount?.name || "";
+                              console.log("dsa",field.value)
+                              return(
                               <FormItem>
                                 <FormLabel>Account To</FormLabel>
-                                <Select onValueChange={field.onChange} >
+                                <Select onValueChange={field.onChange} 
+                                value={field.value || ""}>
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder={transferToEdit? transferToEdit.toAccount : "Account"} />
+                                      <SelectValue placeholder="Select Account">
+                                        {displayValue && <span>{displayValue}</span>}
+                                      </SelectValue>
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {accounts.accounts && accounts.accounts.map((option,index) => (
-                                      <SelectItem key={index} value={option.name}>{option.name}</SelectItem>
+                                    {accountData && accountData.map((option) => (
+                                      <SelectItem key={option.accountId} value={option.accountId}>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{option.name}</span>
+                                        </div>
+                                      </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
                               </FormItem>
-                            )}
+                            )}}
                           />
                                                     
                           <FormField

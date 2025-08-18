@@ -40,6 +40,6 @@ export const transformAccount = (account: any) => ({
     name: transfer.name,
     amount: transfer.amount,
     date: transfer.date,
-    fromAccount: transfer.fromAccountId,
-    toAccount: transfer.toAccountId
+    fromAccountId: transfer.fromAccountId,
+    toAccountId: transfer.toAccountId
   })

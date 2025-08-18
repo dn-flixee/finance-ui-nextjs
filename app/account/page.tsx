@@ -10,20 +10,8 @@ import { selectTransfers, fetchTransfers,  } from '@/lib/features/transfer/trans
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
 import { CreditCard, PlusCircle } from 'lucide-react'
+import { FinanceAccount, Transfer } from '@/lib/types'
 
-interface Transfer {
-    transferId: number;
-    name: string;
-    fromAccount: number;
-    toAccount: number;
-    amount: number;
-    date: Date;
-  }
-interface Account {
-    accountId: number;
-    name: string;
-    goal: number;
-}
   
 export default function Component() {
 
@@ -37,7 +25,7 @@ export default function Component() {
     const [isTransferSheetOpen, setIsTransferSheetOpen] = useState(false)
     const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null)
     const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
-    const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+    const [selectedAccount, setSelectedAccount] = useState<FinanceAccount | null>(null)
 
   useEffect(() => {
     if(transfers.status === 'idle'){
@@ -62,7 +50,7 @@ export default function Component() {
     setSelectedTransfer(null)
   }
 
-  const openAccountSheet = (source: Account | null = null) => {
+  const openAccountSheet = (source: FinanceAccount | null = null) => {
     setSelectedAccount(source)
     setIsAccountSheetOpen(true)
   }
@@ -85,22 +73,24 @@ export default function Component() {
         })
     )
 );
- console.log(new Date())
+const getAccountName = (accountId: string): string => {
+  return accounts.accounts.find(acc => acc.accountId === accountId)?.name || '';
+};
 
-  const months = [
-    { value: 0, label: 'January' },
-    { value: 1, label: 'February' },
-    { value: 2, label: 'March' },
-    { value: 3, label: 'April' },
-    { value: 4, label: 'May' },
-    { value: 5, label: 'June' },
-    { value: 6, label: 'July' },
-    { value: 7, label: 'August' },
-    { value: 8, label: 'September' },
-    { value: 9, label: 'October' },
-    { value: 10, label: 'November' },
-    { value: 11, label: 'December' },
-  ]
+const months = [
+  { value: 0, label: 'January' },
+  { value: 1, label: 'February' },
+  { value: 2, label: 'March' },
+  { value: 3, label: 'April' },
+  { value: 4, label: 'May' },
+  { value: 5, label: 'June' },
+  { value: 6, label: 'July' },
+  { value: 7, label: 'August' },
+  { value: 8, label: 'September' },
+  { value: 9, label: 'October' },
+  { value: 10, label: 'November' },
+  { value: 11, label: 'December' },
+]
 
   return (
     <>
@@ -151,9 +141,9 @@ export default function Component() {
                     <span>{transfer.name}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span>{transfer.fromAccount}</span>
-                    <span>₹ {transfer.amount}</span>
-                    <span>{transfer.toAccount}</span>
+                    <span>{getAccountName(transfer.fromAccountId)}</span>
+                    <span> -> ₹ {transfer.amount} -></span>
+                    <span>{getAccountName(transfer.toAccountId)}</span>
                   </div>
                 </div>
               ))}
@@ -191,7 +181,7 @@ export default function Component() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openTransferSheet()}>
+              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openAccountSheet()}>
                 New
               </Button>
             </div>
@@ -212,9 +202,7 @@ export default function Component() {
         </Card>
       </main>
       <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={selectedAccount} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet}  transferToEdit={selectedTransfer}  />
-      {/* <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={null} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet} transferToEdit={null} /> */}
+      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet}  transferToEdit={selectedTransfer} accountData={accounts.accounts} />
     </div>
     </>
   )

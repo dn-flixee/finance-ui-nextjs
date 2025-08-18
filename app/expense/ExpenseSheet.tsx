@@ -16,32 +16,12 @@ import { CalendarIcon } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { useAppDispatch } from '@/lib/hooks'
 import { deleteExpense, saveExpense, updateExpense } from '@/lib/features/expense/expenseSlice'
+import { ExpenseSource, FinanceAccount, Expense } from '@/lib/types'
 
-interface Expense {
-    expenseId: number;
-    name: string;
-    amount: number;
-    date: Date;
-    accountName: string;
-    expenseSourceName: string;
-  }
-  
-  interface Account {
-    accountId: string;
-    name: string;
-    startingBalance: number;
-    type: number;
-  }
-  
-  interface ExpenseSource {
-    expenseSourceId: string;
-    name: string;
-    budget: number;
-  }
 
 interface ExpenseSheetProps {
   expenseSourceData: ExpenseSource[];
-  accountData: Account[];
+  accountData: FinanceAccount[];
   isOpen: boolean;
   onClose: () => void;
   expenseToEdit: Expense | null;
@@ -56,23 +36,23 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
     if (expenseToEdit) {
         form.setValue("amount", expenseToEdit.amount);
         form.setValue("name", expenseToEdit.name);
-        form.setValue("accountName", expenseToEdit.accountName);
-        form.setValue("expenseSourceName", expenseToEdit.expenseSourceName);
+        form.setValue("accountId", expenseToEdit.accountId);
+        form.setValue("expenseSourceId", expenseToEdit.expenseSourceId);
         form.setValue("date", expenseToEdit.date);
     } else {
-        form.setValue("amount", 0);
+        form.resetField("amount");
         form.setValue("name", "");
-        form.setValue("accountName", "");
-        form.setValue("expenseSourceName","");
+        form.setValue("accountId", "");
+        form.setValue("expenseSourceId","");
         form.setValue("date", new Date());
     }
   }, [expenseToEdit])
 
   const addExpense = z.object({
-    amount: z.coerce.number().positive(),
+    amount: z.coerce.number().min(0),
     name: z.string().min(1).max(255),
-    accountName: z.string().min(1).max(255),
-    expenseSourceName: z.string().min(1).max(255),
+    accountId: z.string().min(1).max(255),
+    expenseSourceId: z.string().min(1).max(255),
     date: z.date({
         required_error: "Please select a date and time",
         invalid_type_error: "That's not a date!",
@@ -92,8 +72,8 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
         name: values.name,
         amount: values.amount,
         date: values.date,
-        accountName: values.accountName,
-        expenseSourceName: values.expenseSourceName,
+        accountId: values.accountId,
+        expenseSourceId: values.expenseSourceId,
       }))
     }else{
         dispatch(saveExpense(values));
@@ -139,52 +119,89 @@ function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expense
                                 </FormItem>);
                           }}/>
                           
+                          <FormField
+                                        control={form.control}
+                                        name="accountId"
+                                        render={({ field }) => {
+                                          // Find the selected account name
+                                          const selectedAccount = accountData?.find(acc => acc.accountId === field.value);
+                                          const displayValue = selectedAccount?.name || "";
+                                          console.log("display valiue",field.value)
+                                          return (
+                                            <FormItem>
+                                              <FormLabel>Account</FormLabel>
+                                              <Select 
+                                                onValueChange={field.onChange}
+                                                value={field.value || ""}
+                                              >
+                                                <FormControl>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select Account">
+                                                      {displayValue && <span>{displayValue}</span>}
+                                                    </SelectValue>
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  {accountData &&
+                                                    accountData.map((option) => (
+                                                      <SelectItem key={option.accountId} value={option.accountId}>
+                                                        <div className="flex flex-col">
+                                                          <span className="font-medium">{option.name}</span>
+                                                        </div>
+                                                      </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                              </Select>
+                                              <FormMessage />
+                                            </FormItem>
+                                          );
+                                        }}
+                                      />
                           
-                          <FormField
-                            control={form.control}
-                            name="accountName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Account</FormLabel>
-                                <Select onValueChange={field.onChange} >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={expenseToEdit? expenseToEdit.accountName : "Account"} />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {accountData && accountData.map((option,index) => (
-                                      <SelectItem key={index} value={option.accountId}>{option.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                                    control={form.control}
-                                    name="expenseSourceName"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Expense Source</FormLabel>
-                                        <Select onValueChange={field.onChange} >
-                                          <FormControl>
-                                            <SelectTrigger>
-                                              <SelectValue placeholder={expenseToEdit? expenseToEdit.expenseSourceName:"Expense Source"} />
-                                            </SelectTrigger>
-                                          </FormControl>
-                                          <SelectContent>
-                                          {expenseSourceData && expenseSourceData.map((option,index) =>(
-                                        <SelectItem key={index} value={option.expenseSourceId}>{option.name}</SelectItem>
-                                      ))}
-                                          </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
+                                      <FormField
+                                        control={form.control}
+                                        name="expenseSourceId"
+                                        render={({ field }) => {
+                                          // Find the selected expense source name
+                                          const selectedexpenseSource = expenseSourceData?.find(
+                                            source => source.expenseSourceId === field.value
+                                          );
+                                          const displayValue = selectedexpenseSource?.name || "";
+                                          console.log("display valiue",field.value)
+                                          return (
+                                            <FormItem>
+                                              <FormLabel>Expense Source</FormLabel>
+                                              <Select 
+                                                onValueChange={field.onChange}
+                                                value={field.value || ""}
+                                              >
+                                                <FormControl>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select Account">
+                                                      {displayValue && <span>{displayValue}</span>}
+                                                    </SelectValue>
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  {expenseSourceData &&
+                                                    expenseSourceData.map((option) => (
+                                                      <SelectItem 
+                                                        key={option.expenseSourceId} 
+                                                        value={option.expenseSourceId} // Store ID, not name
+                                                      >
+                                                         <div className="flex flex-col">
+                                                          <span className="font-medium">{option.name}</span>
+                                                        </div>
+                                                      </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                              </Select>
+                                              <FormMessage />
+                                            </FormItem>
+                                          );
+                                        }}
+                                      />
+                          
                           
                           
                           <FormField

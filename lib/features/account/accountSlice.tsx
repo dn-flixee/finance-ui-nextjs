@@ -3,24 +3,14 @@ import { createSlice } from "@reduxjs/toolkit";
 import { createAppAsyncThunk } from "@/lib/withTypes";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
+import { FinanceAccount, CreateFinanceAccountInput, UpdateFinanceAccountInput } from "@/lib/types";
 
-export interface Account {
-    accountId: number;
-    name: string;
-    startingBalance: number;
-    type: number;
-  }
 interface AccountState {
-    accounts: Account[];
+    accounts: FinanceAccount[];
     status: "idle" | "loading" | "succeeded" | "failed";
     error: string | null;
 }
 
-interface NewAccount {
-    name: string;
-    startingBalance: number;
-    type: number;
-}
 
 const intialState: AccountState = {
     status: "idle",
@@ -36,13 +26,21 @@ export const fetchAccounts = createAppAsyncThunk(
         const res = await axios.get(ACCOUNT_API_BASE_URL);
         console.log("fetch expense Source")
         console.log(res.data)
-        return res.data;
+        return res.data.map
+        ((account: FinanceAccount) =>{
+            return {
+                    accountId: account.accountId,
+                    name: account.name,
+                    startingBalance: account.startingBalance,
+                    type: account.type
+            }
+        });
     }
 );
 
 export const saveAccount = createAppAsyncThunk(
     "account/saveAccounts",
-    async (account: NewAccount) => {
+    async (account: CreateFinanceAccountInput) => {
         const res = await axios.post(ACCOUNT_API_BASE_URL,account);
         return res.data;
     }
@@ -50,7 +48,7 @@ export const saveAccount = createAppAsyncThunk(
 
 export const updateAccount = createAppAsyncThunk(
     "account/updateAccount",
-    async (account: Account) => {
+    async (account: UpdateFinanceAccountInput) => {
         const res = await axios.put(
             `${ACCOUNT_API_BASE_URL}/${account.accountId}`,
             account
@@ -60,7 +58,7 @@ export const updateAccount = createAppAsyncThunk(
 );
 export const deleteAccount = createAppAsyncThunk(
     "account/deleteAccount",
-    async (accountid: number) => {
+    async (accountid: string) => {
         await axios.delete(`${ACCOUNT_API_BASE_URL}/${accountid}`);
         return accountid;
     }
