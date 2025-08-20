@@ -1,14 +1,16 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector", schema: "extensions")]
 }
 
-// NextAuth required models
+// NextAuth models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -22,8 +24,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("nextauth_accounts")
@@ -48,17 +49,25 @@ model VerificationToken {
   @@map("nextauth_verification_tokens")
 }
 
-// User model
+// Enhanced User model
 model User {
   id            String    @id @default(cuid())
   name          String?
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  password      String? // For credentials provider
+  password      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Splitwise integration
+  splitwiseUserId    String?
+  splitwiseToken     String?
+  splitwiseTokenExp  DateTime?
+
+  // Email integration
+  linkedEmails       LinkedEmail[]
+  
   // NextAuth relations
   accounts Account[]
   sessions Session[]
@@ -70,32 +79,58 @@ model User {
   incomeSources   IncomeSource[]
   expenseSources  ExpenseSource[]
   transfers       Transfer[]
+  
+  // Splitwise relations
+  splitwiseExpenses SplitwiseExpense[]
+  
+  // AI Chat relations
+  chatSessions      ChatSession[]
 
   @@map("users")
 }
 
-// Finance models with user relationships
+// Enhanced FinanceAccount model
 model FinanceAccount {
-  accountId       String   @id @default(cuid()) // Primary key with cuid
-  name            String
-  startingBalance Float
-  type            Float?
-  userId          String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  accountId     String       @id @default(cuid())
+  name          String
+  accountType   AccountType
+  balance       Float        // Positive for assets, negative for liabilities
+  creditLimit   Float?
+  iconUrl       String?
+  
+  // Bank integration metadata
+  bankName      String?
+  bankAccountNumber String?
+  routingNumber String?
+  
+  userId        String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   incomes       Income[]
   expenses      Expense[]
   transfersFrom Transfer[] @relation("FromAccount")
   transfersTo   Transfer[] @relation("ToAccount")
+  
+  // Email transaction associations
+  emailTransactions EmailTransaction[]
 
   @@unique([name, userId])
   @@map("accounts")
 }
 
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  LOAN
+  INVESTMENT
+  CASH
+}
+
 model IncomeSource {
-  incomeSourceId String   @id @default(cuid()) // Primary key with cuid
+  incomeSourceId String   @id @default(cuid())
   name           String
   goal           Float
   userId         String
@@ -110,7 +145,7 @@ model IncomeSource {
 }
 
 model ExpenseSource {
-  expenseSourceId String   @id @default(cuid()) // Primary key with cuid
+  expenseSourceId String   @id @default(cuid())
   name            String
   budget          Float
   userId          String
@@ -124,56 +159,248 @@ model ExpenseSource {
   @@map("expense_sources")
 }
 
+// Enhanced transaction models
 model Income {
-  incomeId       String   @id @default(cuid()) // Primary key with cuid
+  incomeId       String   @id @default(cuid())
   name           String
   amount         Float
   date           DateTime
-  accountId      String   // References FinanceAccount.accountId
-  incomeSourceId String   // References IncomeSource.incomeSourceId
+  accountId      String
+  incomeSourceId String?
   userId         String
+  iconUrl        String?
+  
+  // Source tracking
+  sourceType     TransactionSource @default(MANUAL)
+  sourceId       String?           // Email transaction ID or other source
+  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   account      FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
-  incomeSource IncomeSource   @relation(fields: [incomeSourceId], references: [incomeSourceId], onDelete: Cascade)
+  incomeSource IncomeSource?  @relation(fields: [incomeSourceId], references: [incomeSourceId], onDelete: SetNull)
 
   @@map("incomes")
 }
 
 model Expense {
-  expenseId       String   @id @default(cuid()) // Primary key with cuid
+  expenseId       String   @id @default(cuid())
   name            String
   amount          Float
   date            DateTime
-  accountId       String   // References FinanceAccount.accountId
-  expenseSourceId String   // References ExpenseSource.expenseSourceId
+  accountId       String
+  expenseSourceId String?
   userId          String
+  iconUrl         String?
+  
+  // Enhanced expense tracking
+  sourceType      TransactionSource @default(MANUAL)
+  sourceId        String?           // Splitwise expense ID or email transaction ID
+  
+  // Splitwise specific fields
+  splitwiseExpenseId String?
+  isSplitwiseLinked  Boolean @default(false)
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   account       FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
-  expenseSource ExpenseSource  @relation(fields: [expenseSourceId], references: [expenseSourceId], onDelete: Cascade)
+  expenseSource ExpenseSource? @relation(fields: [expenseSourceId], references: [expenseSourceId], onDelete: SetNull)
 
   @@map("expenses")
 }
 
 model Transfer {
-  transferId    String   @id @default(cuid()) // Primary key with cuid
+  transferId    String   @id @default(cuid())
   name          String
   amount        Float
   date          DateTime
-  fromAccountId String   // References FinanceAccount.accountId
-  toAccountId   String   // References FinanceAccount.accountId
+  fromAccountId String?
+  toAccountId   String?
   userId        String
+  iconUrl       String?
+  
+  // Source tracking
+  sourceType    TransactionSource @default(MANUAL)
+  sourceId      String?
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fromAccount FinanceAccount @relation("FromAccount", fields: [fromAccountId], references: [accountId], onDelete: Cascade)
-  toAccount   FinanceAccount @relation("ToAccount", fields: [toAccountId], references: [accountId], onDelete: Cascade)
+  fromAccount FinanceAccount? @relation("FromAccount", fields: [fromAccountId], references: [accountId], onDelete: SetNull)
+  toAccount   FinanceAccount? @relation("ToAccount", fields: [toAccountId], references: [accountId], onDelete: SetNull)
 
   @@map("transfers")
+}
+
+enum TransactionSource {
+  MANUAL
+  EMAIL_PARSED
+  SPLITWISE
+  BANK_SYNC
+}
+
+// Splitwise Integration Models
+model SplitwiseExpense {
+  id              String   @id @default(cuid())
+  splitwiseId     String   @unique // Original Splitwise expense ID
+  description     String
+  totalAmount     Float
+  userShare       Float    // User's share of the expense
+  currency        String   @default("INR")
+  date            DateTime
+  category        String?
+  
+  // Splitwise metadata
+  groupId         String?
+  groupName       String?
+  paidBy          String   // Who paid for the expense
+  participants    Json     // Array of participants and their shares
+  
+  // Linking to app expense
+  linkedExpenseId String?  // If user chooses to link to existing expense
+  isLinked        Boolean  @default(false)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("splitwise_expenses")
+}
+
+// Email Integration Models
+model LinkedEmail {
+  id            String      @id @default(cuid())
+  email         String
+  provider      EmailProvider
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  tokenExpiry   DateTime?
+  
+  // Email parsing settings
+  enableParsing Boolean     @default(true)
+  keywords      String[]    // Keywords to look for in emails
+  
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Parsed transactions
+  emailTransactions EmailTransaction[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([email, userId])
+  @@map("linked_emails")
+}
+
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+  YAHOO
+}
+
+model EmailTransaction {
+  id            String            @id @default(cuid())
+  subject       String
+  content       String            @db.Text
+  parsedAmount  Float?
+  parsedDate    DateTime?
+  parsedMerchant String?
+  parsedType    TransactionType?
+  
+  // Email metadata
+  emailId       String            // Original email ID
+  fromAddress   String
+  receivedAt    DateTime
+  
+  // Processing status
+  status        ProcessingStatus  @default(PENDING)
+  confidence    Float?            // AI confidence score (0-1)
+  
+  // Linking
+  linkedTransactionId String?     // If linked to income/expense
+  accountId     String?
+  linkedEmailId String
+  
+  linkedEmail   LinkedEmail       @relation(fields: [linkedEmailId], references: [id], onDelete: Cascade)
+  account       FinanceAccount?   @relation(fields: [accountId], references: [accountId])
+  
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@map("email_transactions")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSED
+  LINKED
+  IGNORED
+  ERROR
+}
+
+// AI Chatbot Models
+model ChatSession {
+  id            String        @id @default(cuid())
+  title         String?
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  messages      ChatMessage[]
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  content       String      @db.Text
+  role          MessageRole
+  
+  // Vector embedding for RAG (updated to 2048 dimensions)
+  embedding     Unsupported("vector(2048)")?
+  
+  sessionId     String
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime    @default(now())
+
+  @@map("chat_messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// Financial Knowledge Base for RAG
+model FinancialKnowledge {
+  id            String      @id @default(cuid())
+  title         String
+  content       String      @db.Text
+  category      String
+  tags          String[]
+  
+  // Vector embedding (updated to Gemma-2B's 2048 dimensions)
+  embedding     Unsupported("vector(2048)")
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("financial_knowledge")
 }

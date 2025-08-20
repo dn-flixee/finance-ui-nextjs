@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("nextauth_accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("nextauth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("nextauth_verification_tokens")
+}
+
+// User model
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // For credentials provider
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Finance app relations
+  financeAccounts FinanceAccount[]
+  incomes         Income[]
+  expenses        Expense[]
+  incomeSources   IncomeSource[]
+  expenseSources  ExpenseSource[]
+  transfers       Transfer[]
+
+  @@map("users")
+}
+
+// Finance models with user relationships
+model FinanceAccount {
+  accountId       String   @id @default(cuid()) // Primary key with cuid
+  name            String
+  startingBalance Float
+  type            Float?
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes       Income[]
+  expenses      Expense[]
+  transfersFrom Transfer[] @relation("FromAccount")
+  transfersTo   Transfer[] @relation("ToAccount")
+
+  @@unique([name, userId])
+  @@map("accounts")
+}
+
+model IncomeSource {
+  incomeSourceId String   @id @default(cuid()) // Primary key with cuid
+  name           String
+  goal           Float
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes Income[]
+
+  @@unique([name, userId])
+  @@map("income_sources")
+}
+
+model ExpenseSource {
+  expenseSourceId String   @id @default(cuid()) // Primary key with cuid
+  name            String
+  budget          Float
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([name, userId])
+  @@map("expense_sources")
+}
+
+model Income {
+  incomeId       String   @id @default(cuid()) // Primary key with cuid
+  name           String
+  amount         Float
+  date           DateTime
+  accountId      String   // References FinanceAccount.accountId
+  incomeSourceId String   // References IncomeSource.incomeSourceId
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  incomeSource IncomeSource   @relation(fields: [incomeSourceId], references: [incomeSourceId], onDelete: Cascade)
+
+  @@map("incomes")
+}
+
+model Expense {
+  expenseId       String   @id @default(cuid()) // Primary key with cuid
+  name            String
+  amount          Float
+  date            DateTime
+  accountId       String   // References FinanceAccount.accountId
+  expenseSourceId String   // References ExpenseSource.expenseSourceId
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       FinanceAccount @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  expenseSource ExpenseSource  @relation(fields: [expenseSourceId], references: [expenseSourceId], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model Transfer {
+  transferId    String   @id @default(cuid()) // Primary key with cuid
+  name          String
+  amount        Float
+  date          DateTime
+  fromAccountId String   // References FinanceAccount.accountId
+  toAccountId   String   // References FinanceAccount.accountId
+  userId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount FinanceAccount @relation("FromAccount", fields: [fromAccountId], references: [accountId], onDelete: Cascade)
+  toAccount   FinanceAccount @relation("ToAccount", fields: [toAccountId], references: [accountId], onDelete: Cascade)
+
+  @@map("transfers")
+}

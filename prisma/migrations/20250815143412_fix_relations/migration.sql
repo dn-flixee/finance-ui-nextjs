@@ -1,52 +1,29 @@
-/*
-  Warnings:
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
 
-  - You are about to drop the `account` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `expense` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `expense_source` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `income` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `income_source` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `transfer` table. If the table is not empty, all the data it contains will be lost.
+-- CreateExtension
+CREATE EXTENSION IF NOT EXISTS "vector" WITH SCHEMA "extensions";
 
-*/
--- DropForeignKey
-ALTER TABLE "expense" DROP CONSTRAINT "expense_accountId_fkey";
+-- CreateEnum
+CREATE TYPE "public"."AccountType" AS ENUM ('CHECKING', 'SAVINGS', 'CREDIT_CARD', 'LOAN', 'INVESTMENT', 'CASH');
 
--- DropForeignKey
-ALTER TABLE "expense" DROP CONSTRAINT "expense_expenseSourceId_fkey";
+-- CreateEnum
+CREATE TYPE "public"."TransactionSource" AS ENUM ('MANUAL', 'EMAIL_PARSED', 'SPLITWISE', 'BANK_SYNC');
 
--- DropForeignKey
-ALTER TABLE "income" DROP CONSTRAINT "income_accountId_fkey";
+-- CreateEnum
+CREATE TYPE "public"."EmailProvider" AS ENUM ('GMAIL', 'OUTLOOK', 'YAHOO');
 
--- DropForeignKey
-ALTER TABLE "income" DROP CONSTRAINT "income_incomeSourceId_fkey";
+-- CreateEnum
+CREATE TYPE "public"."TransactionType" AS ENUM ('INCOME', 'EXPENSE', 'TRANSFER');
 
--- DropForeignKey
-ALTER TABLE "transfer" DROP CONSTRAINT "transfer_fromAccountId_fkey";
+-- CreateEnum
+CREATE TYPE "public"."ProcessingStatus" AS ENUM ('PENDING', 'PROCESSED', 'LINKED', 'IGNORED', 'ERROR');
 
--- DropForeignKey
-ALTER TABLE "transfer" DROP CONSTRAINT "transfer_toAccountId_fkey";
-
--- DropTable
-DROP TABLE "account";
-
--- DropTable
-DROP TABLE "expense";
-
--- DropTable
-DROP TABLE "expense_source";
-
--- DropTable
-DROP TABLE "income";
-
--- DropTable
-DROP TABLE "income_source";
-
--- DropTable
-DROP TABLE "transfer";
+-- CreateEnum
+CREATE TYPE "public"."MessageRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
 
 -- CreateTable
-CREATE TABLE "nextauth_accounts" (
+CREATE TABLE "public"."nextauth_accounts" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -64,7 +41,7 @@ CREATE TABLE "nextauth_accounts" (
 );
 
 -- CreateTable
-CREATE TABLE "nextauth_sessions" (
+CREATE TABLE "public"."nextauth_sessions" (
     "id" TEXT NOT NULL,
     "sessionToken" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -74,14 +51,14 @@ CREATE TABLE "nextauth_sessions" (
 );
 
 -- CreateTable
-CREATE TABLE "nextauth_verification_tokens" (
+CREATE TABLE "public"."nextauth_verification_tokens" (
     "identifier" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "expires" TIMESTAMP(3) NOT NULL
 );
 
 -- CreateTable
-CREATE TABLE "users" (
+CREATE TABLE "public"."users" (
     "id" TEXT NOT NULL,
     "name" TEXT,
     "email" TEXT NOT NULL,
@@ -90,178 +67,298 @@ CREATE TABLE "users" (
     "password" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "splitwiseUserId" TEXT,
+    "splitwiseToken" TEXT,
+    "splitwiseTokenExp" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "accounts" (
-    "id" TEXT NOT NULL,
-    "accountId" SERIAL NOT NULL,
+CREATE TABLE "public"."accounts" (
+    "accountId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "startingBalance" DOUBLE PRECISION NOT NULL,
-    "type" DOUBLE PRECISION,
+    "accountType" "public"."AccountType" NOT NULL,
+    "balance" DOUBLE PRECISION NOT NULL,
+    "creditLimit" DOUBLE PRECISION,
+    "iconUrl" TEXT,
+    "bankName" TEXT,
+    "bankAccountNumber" TEXT,
+    "routingNumber" TEXT,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "accounts_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "accounts_pkey" PRIMARY KEY ("accountId")
 );
 
 -- CreateTable
-CREATE TABLE "income_sources" (
-    "id" TEXT NOT NULL,
-    "incomeSourceId" SERIAL NOT NULL,
+CREATE TABLE "public"."income_sources" (
+    "incomeSourceId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "goal" DOUBLE PRECISION NOT NULL,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "income_sources_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "income_sources_pkey" PRIMARY KEY ("incomeSourceId")
 );
 
 -- CreateTable
-CREATE TABLE "expense_sources" (
-    "id" TEXT NOT NULL,
-    "expenseSourceId" SERIAL NOT NULL,
+CREATE TABLE "public"."expense_sources" (
+    "expenseSourceId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "budget" DOUBLE PRECISION NOT NULL,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "expense_sources_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "expense_sources_pkey" PRIMARY KEY ("expenseSourceId")
 );
 
 -- CreateTable
-CREATE TABLE "incomes" (
-    "id" TEXT NOT NULL,
-    "incomeId" SERIAL NOT NULL,
+CREATE TABLE "public"."incomes" (
+    "incomeId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "accountId" TEXT NOT NULL,
-    "incomeSourceId" TEXT NOT NULL,
+    "incomeSourceId" TEXT,
     "userId" TEXT NOT NULL,
+    "iconUrl" TEXT,
+    "sourceType" "public"."TransactionSource" NOT NULL DEFAULT 'MANUAL',
+    "sourceId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "incomes_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "incomes_pkey" PRIMARY KEY ("incomeId")
 );
 
 -- CreateTable
-CREATE TABLE "expenses" (
-    "id" TEXT NOT NULL,
-    "expenseId" SERIAL NOT NULL,
+CREATE TABLE "public"."expenses" (
+    "expenseId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "accountId" TEXT NOT NULL,
-    "expenseSourceId" TEXT NOT NULL,
+    "expenseSourceId" TEXT,
     "userId" TEXT NOT NULL,
+    "iconUrl" TEXT,
+    "sourceType" "public"."TransactionSource" NOT NULL DEFAULT 'MANUAL',
+    "sourceId" TEXT,
+    "splitwiseExpenseId" TEXT,
+    "isSplitwiseLinked" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "expenses_pkey" PRIMARY KEY ("expenseId")
 );
 
 -- CreateTable
-CREATE TABLE "transfers" (
-    "id" TEXT NOT NULL,
-    "transferId" SERIAL NOT NULL,
+CREATE TABLE "public"."transfers" (
+    "transferId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
-    "fromAccountId" TEXT NOT NULL,
-    "toAccountId" TEXT NOT NULL,
+    "fromAccountId" TEXT,
+    "toAccountId" TEXT,
+    "userId" TEXT NOT NULL,
+    "iconUrl" TEXT,
+    "sourceType" "public"."TransactionSource" NOT NULL DEFAULT 'MANUAL',
+    "sourceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "transfers_pkey" PRIMARY KEY ("transferId")
+);
+
+-- CreateTable
+CREATE TABLE "public"."splitwise_expenses" (
+    "id" TEXT NOT NULL,
+    "splitwiseId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "totalAmount" DOUBLE PRECISION NOT NULL,
+    "userShare" DOUBLE PRECISION NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'INR',
+    "date" TIMESTAMP(3) NOT NULL,
+    "category" TEXT,
+    "groupId" TEXT,
+    "groupName" TEXT,
+    "paidBy" TEXT NOT NULL,
+    "participants" JSONB NOT NULL,
+    "linkedExpenseId" TEXT,
+    "isLinked" BOOLEAN NOT NULL DEFAULT false,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "transfers_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "splitwise_expenses_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."linked_emails" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "provider" "public"."EmailProvider" NOT NULL,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "tokenExpiry" TIMESTAMP(3),
+    "enableParsing" BOOLEAN NOT NULL DEFAULT true,
+    "keywords" TEXT[],
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "linked_emails_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."email_transactions" (
+    "id" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "parsedAmount" DOUBLE PRECISION,
+    "parsedDate" TIMESTAMP(3),
+    "parsedMerchant" TEXT,
+    "parsedType" "public"."TransactionType",
+    "emailId" TEXT NOT NULL,
+    "fromAddress" TEXT NOT NULL,
+    "receivedAt" TIMESTAMP(3) NOT NULL,
+    "status" "public"."ProcessingStatus" NOT NULL DEFAULT 'PENDING',
+    "confidence" DOUBLE PRECISION,
+    "linkedTransactionId" TEXT,
+    "accountId" TEXT,
+    "linkedEmailId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "email_transactions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."chat_sessions" (
+    "id" TEXT NOT NULL,
+    "title" TEXT,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "chat_sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."chat_messages" (
+    "id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "role" "public"."MessageRole" NOT NULL,
+    "embedding" vector(2048),
+    "sessionId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "chat_messages_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."financial_knowledge" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "tags" TEXT[],
+    "embedding" vector(2048) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "financial_knowledge_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "nextauth_accounts_provider_providerAccountId_key" ON "nextauth_accounts"("provider", "providerAccountId");
+CREATE UNIQUE INDEX "nextauth_accounts_provider_providerAccountId_key" ON "public"."nextauth_accounts"("provider", "providerAccountId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "nextauth_sessions_sessionToken_key" ON "nextauth_sessions"("sessionToken");
+CREATE UNIQUE INDEX "nextauth_sessions_sessionToken_key" ON "public"."nextauth_sessions"("sessionToken");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "nextauth_verification_tokens_token_key" ON "nextauth_verification_tokens"("token");
+CREATE UNIQUE INDEX "nextauth_verification_tokens_token_key" ON "public"."nextauth_verification_tokens"("token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "nextauth_verification_tokens_identifier_token_key" ON "nextauth_verification_tokens"("identifier", "token");
+CREATE UNIQUE INDEX "nextauth_verification_tokens_identifier_token_key" ON "public"."nextauth_verification_tokens"("identifier", "token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "accounts_accountId_key" ON "accounts"("accountId");
+CREATE UNIQUE INDEX "accounts_name_userId_key" ON "public"."accounts"("name", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "accounts_name_userId_key" ON "accounts"("name", "userId");
+CREATE UNIQUE INDEX "income_sources_name_userId_key" ON "public"."income_sources"("name", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "income_sources_incomeSourceId_key" ON "income_sources"("incomeSourceId");
+CREATE UNIQUE INDEX "expense_sources_name_userId_key" ON "public"."expense_sources"("name", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "income_sources_name_userId_key" ON "income_sources"("name", "userId");
+CREATE UNIQUE INDEX "splitwise_expenses_splitwiseId_key" ON "public"."splitwise_expenses"("splitwiseId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "expense_sources_expenseSourceId_key" ON "expense_sources"("expenseSourceId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "expense_sources_name_userId_key" ON "expense_sources"("name", "userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "incomes_incomeId_key" ON "incomes"("incomeId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "expenses_expenseId_key" ON "expenses"("expenseId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "transfers_transferId_key" ON "transfers"("transferId");
+CREATE UNIQUE INDEX "linked_emails_email_userId_key" ON "public"."linked_emails"("email", "userId");
 
 -- AddForeignKey
-ALTER TABLE "nextauth_accounts" ADD CONSTRAINT "nextauth_accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."nextauth_accounts" ADD CONSTRAINT "nextauth_accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "nextauth_sessions" ADD CONSTRAINT "nextauth_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."nextauth_sessions" ADD CONSTRAINT "nextauth_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "accounts" ADD CONSTRAINT "accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."accounts" ADD CONSTRAINT "accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "income_sources" ADD CONSTRAINT "income_sources_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."income_sources" ADD CONSTRAINT "income_sources_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "expense_sources" ADD CONSTRAINT "expense_sources_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."expense_sources" ADD CONSTRAINT "expense_sources_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "incomes" ADD CONSTRAINT "incomes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."incomes" ADD CONSTRAINT "incomes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "incomes" ADD CONSTRAINT "incomes_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."incomes" ADD CONSTRAINT "incomes_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."accounts"("accountId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "incomes" ADD CONSTRAINT "incomes_incomeSourceId_fkey" FOREIGN KEY ("incomeSourceId") REFERENCES "income_sources"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."incomes" ADD CONSTRAINT "incomes_incomeSourceId_fkey" FOREIGN KEY ("incomeSourceId") REFERENCES "public"."income_sources"("incomeSourceId") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "expenses" ADD CONSTRAINT "expenses_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."expenses" ADD CONSTRAINT "expenses_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "expenses" ADD CONSTRAINT "expenses_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."expenses" ADD CONSTRAINT "expenses_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."accounts"("accountId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "expenses" ADD CONSTRAINT "expenses_expenseSourceId_fkey" FOREIGN KEY ("expenseSourceId") REFERENCES "expense_sources"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."expenses" ADD CONSTRAINT "expenses_expenseSourceId_fkey" FOREIGN KEY ("expenseSourceId") REFERENCES "public"."expense_sources"("expenseSourceId") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "transfers" ADD CONSTRAINT "transfers_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."transfers" ADD CONSTRAINT "transfers_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "transfers" ADD CONSTRAINT "transfers_fromAccountId_fkey" FOREIGN KEY ("fromAccountId") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."transfers" ADD CONSTRAINT "transfers_fromAccountId_fkey" FOREIGN KEY ("fromAccountId") REFERENCES "public"."accounts"("accountId") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "transfers" ADD CONSTRAINT "transfers_toAccountId_fkey" FOREIGN KEY ("toAccountId") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."transfers" ADD CONSTRAINT "transfers_toAccountId_fkey" FOREIGN KEY ("toAccountId") REFERENCES "public"."accounts"("accountId") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."splitwise_expenses" ADD CONSTRAINT "splitwise_expenses_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."linked_emails" ADD CONSTRAINT "linked_emails_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."email_transactions" ADD CONSTRAINT "email_transactions_linkedEmailId_fkey" FOREIGN KEY ("linkedEmailId") REFERENCES "public"."linked_emails"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."email_transactions" ADD CONSTRAINT "email_transactions_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "public"."accounts"("accountId") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."chat_sessions" ADD CONSTRAINT "chat_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."chat_messages" ADD CONSTRAINT "chat_messages_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "public"."chat_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
