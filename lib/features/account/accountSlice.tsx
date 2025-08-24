@@ -1,177 +1,160 @@
-import { RootState } from "@/lib/store";
-import { createSlice } from "@reduxjs/toolkit";
-import { createAppAsyncThunk } from "@/lib/withTypes";
-import axios from "axios";
-import { toast } from "@/components/ui/use-toast";
-import { FinanceAccount, CreateFinanceAccountInput, UpdateFinanceAccountInput } from "@/lib/types";
+// src/lib/features/accounts/accountsSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { RootState } from '@/lib/store'
+import axios from 'axios'
+import { toast } from '@/components/ui/use-toast'
+import { FinanceAccount, CreateFinanceAccountInput, UpdateFinanceAccountInput } from '@/lib/types'
 
-interface AccountState {
-    accounts: FinanceAccount[];
-    status: "idle" | "loading" | "succeeded" | "failed";
-    error: string | null;
+interface AccountsState {
+  accounts: FinanceAccount[]
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
 }
 
+const initialState: AccountsState = {
+  accounts: [],
+  status: 'idle',
+  error: null,
+}
 
-const intialState: AccountState = {
-    status: "idle",
-    accounts: [],
-    error: null,
-};
+const ACCOUNTS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/accounts'
 
-const ACCOUNT_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/account";
+// Async thunks
+export const fetchAccounts = createAsyncThunk(
+  'accounts/fetchAccounts',
+  async () => {
+    const response = await axios.get(ACCOUNTS_API_BASE_URL)
+    return response.data
+  }
+)
 
-export const fetchAccounts = createAppAsyncThunk(
-    "account/fetchAccounts",
-    async () => {
-        const res = await axios.get(ACCOUNT_API_BASE_URL);
-        console.log("fetch expense Source")
-        console.log(res.data)
-        return res.data.map
-        ((account: FinanceAccount) =>{
-            return {
-                    accountId: account.accountId,
-                    name: account.name,
-                    startingBalance: account.startingBalance,
-                    type: account.type
-            }
-        });
+export const createAccount = createAsyncThunk(
+  'accounts/createAccount',
+  async (account: CreateFinanceAccountInput) => {
+    const response = await axios.post(ACCOUNTS_API_BASE_URL, account)
+    return response.data
+  }
+)
+
+export const updateAccount = createAsyncThunk(
+  'accounts/updateAccount',
+  async (account: UpdateFinanceAccountInput) => {
+    const response = await axios.put(ACCOUNTS_API_BASE_URL, account)
+    return response.data
+  }
+)
+
+export const deleteAccount = createAsyncThunk(
+  'accounts/deleteAccount',
+  async (accountId: string) => {
+    await axios.delete(`${ACCOUNTS_API_BASE_URL}?accountId=${accountId}`)
+    return accountId
+  }
+)
+
+// Slice
+const accountsSlice = createSlice({
+  name: 'accounts',
+  initialState,
+  reducers: {
+    clearError: (state) => {
+      state.error = null
     }
-);
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch accounts
+      .addCase(fetchAccounts.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(fetchAccounts.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.accounts = action.payload.accounts || action.payload
+      })
+      .addCase(fetchAccounts.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to fetch accounts'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch accounts',
+        })
+      })
+      
+      // Create account
+      .addCase(createAccount.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(createAccount.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.accounts.unshift(action.payload)
+        toast({
+          description: 'Account created successfully!',
+        })
+      })
+      .addCase(createAccount.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to create account'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to create account',
+        })
+      })
+      
+      // Update account
+      .addCase(updateAccount.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(updateAccount.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        const index = state.accounts.findIndex(account => account.accountId === action.payload.accountId)
+        if (index !== -1) {
+          state.accounts[index] = action.payload
+        }
+        toast({
+          description: 'Account updated successfully!',
+        })
+      })
+      .addCase(updateAccount.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to update account'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to update account',
+        })
+      })
+      
+      // Delete account
+      .addCase(deleteAccount.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(deleteAccount.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.accounts = state.accounts.filter(account => account.accountId !== action.payload)
+        toast({
+          description: 'Account deleted successfully!',
+        })
+      })
+      .addCase(deleteAccount.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to delete account'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to delete account',
+        })
+      })
+  },
+})
 
-export const saveAccount = createAppAsyncThunk(
-    "account/saveAccounts",
-    async (account: CreateFinanceAccountInput) => {
-        const res = await axios.post(ACCOUNT_API_BASE_URL,account);
-        return res.data;
-    }
-);
+// Actions
+export const { clearError } = accountsSlice.actions
 
-export const updateAccount = createAppAsyncThunk(
-    "account/updateAccount",
-    async (account: UpdateFinanceAccountInput) => {
-        const res = await axios.put(
-            `${ACCOUNT_API_BASE_URL}/${account.accountId}`,
-            account
-        );
-        return res.data;
-    }
-);
-export const deleteAccount = createAppAsyncThunk(
-    "account/deleteAccount",
-    async (accountid: string) => {
-        await axios.delete(`${ACCOUNT_API_BASE_URL}/${accountid}`);
-        return accountid;
-    }
-);
+// Selectors
+export const selectAccounts = (state: RootState) => state.accounts.accounts
+export const selectAccountsStatus = (state: RootState) => state.accounts.status
+export const selectAccountsError = (state: RootState) => state.accounts.error
 
-export const accountSlice = createSlice({
-    name: "accounts",
-    initialState: intialState,
-    reducers: {},
-    extraReducers: (builder) => {
-        // fetchAccounts builder
-        builder.addCase(fetchAccounts.pending, (state) => {
-            state.status = "loading";
-        });
-        builder.addCase(fetchAccounts.fulfilled, (state, action) => {
-            (state.status = "succeeded"), (state.accounts = action.payload);
-        });
-        builder.addCase(fetchAccounts.rejected, (state, action) => {
-            (state.status = "failed"),
-                (state.error = action.error.message ?? "Unknown Error");
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem with fetching account data.",
-            });
-        });
-
-        // saveAccounts builder
-        builder.addCase(saveAccount.fulfilled, (state, action) => {
-            state.accounts.push({
-                accountId: action.payload.accountId,
-                name: action.payload.name,
-                startingBalance : action.payload.balance,
-                type: action.payload.type
-            });
-            toast({
-                description: "Account saved successfully!",
-              })
-        });
-        builder.addCase(saveAccount.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // updateAccounts builder
-        builder.addCase(updateAccount.fulfilled, (state, action) => {
-                (state.accounts = state.accounts.map((account) => {
-                    if (account.accountId === action.payload.accountId) {
-                        return {
-                            accountId: action.payload.accountId,
-                            name: action.payload.name,
-                            startingBalance : action.payload.balance,
-                            type: action.payload.type
-
-                        }
-                    } else {
-                        return {
-                            accountId: account.accountId,
-                            name: account.name,
-                            startingBalance : account.startingBalance,
-                            type: action.payload.type
-
-                        }
-
-                    }
-                }));
-                toast({
-                    description: "Account updated successfully!",
-                  })
-        });
-        builder.addCase(updateAccount.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // deleteAccounts builder
-        builder.addCase(deleteAccount.fulfilled, (state, action) => {
-            state.accounts = state.accounts.filter((account) => 
-                account.accountId !== action.payload
-            );
-            toast({
-                description: "Account deleted successfully!",
-              })
-        });
-        builder.addCase(deleteAccount.rejected, (state, action) => {
-            console.log(action.error.message)
-            if(action.error.message === "Request failed with status code 400"){
-                toast({
-                    variant: "destructive",
-                    duration:5000,
-                    title: "Uh oh! Something went wrong.",
-                    description: "Can't delete the account because there are incomes & expenses connected to this account.",
-                })
-            }
-            else{
-                toast({
-                    variant: "destructive",
-                    duration:5000,
-                  title: "Uh oh! Something went wrong.",
-                  description: "There was a problem with your request.",
-                })}
-        });
-    },
-});
-
-export const selectAccounts = (state: RootState) => state.accounts;
-export default accountSlice.reducer;
+export default accountsSlice.reducer

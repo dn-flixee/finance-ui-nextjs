@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-const protectedRoutes = ["/dashboard", "/account", "/expense", "/income", "/transfer"]
+const protectedRoutes = ["/dashboard", "/account", "/expense", "/income", "/transfer", "splitwise"]
 const publicRoutes = ["/login", "/register", "/api/auth", "/api/splitwise/callback"] // ✅ Add callback to public routes
 
 export async function middleware(req: NextRequest) {
@@ -48,6 +48,8 @@ export const config = {
     "/account/:path*", 
     "/expense/:path*",
     "/income/:path*", 
-    "/transfer/:path*"
+    "/transfer/:path*",
+    "/splitwise/:path*"
+
   ]
 }

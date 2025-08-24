@@ -13,6 +13,8 @@ import {
   TrendingUp,
   RefreshCw
 } from 'lucide-react'
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { fetchSplitwiseExpenses, selectSplitwises } from '@/lib/features/splitwise/splitwiseSlice'
 
 interface DashboardStats {
   totalSplitwise: number
@@ -29,7 +31,11 @@ interface FinanceAppExpense {
 }
 
 export function SplitwiseDashboard() {
-  const { expenses, isConnected, sync, linkExpense } = useSplitwiseSync()
+
+  const splitwiseExpenses = useAppSelector(selectSplitwises)
+   const dispatch = useAppDispatch()
+   
+  const {  isConnected, sync, linkExpense, connect } = useSplitwiseSync()
   const [stats, setStats] = useState<DashboardStats>({
     totalSplitwise: 0,
     linkedExpenses: { linked: 0, total: 0 },
@@ -44,26 +50,36 @@ export function SplitwiseDashboard() {
       calculateStats()
       loadSampleFinanceExpenses()
     }
-  }, [expenses, isConnected])
+  }, [isConnected])
+
+    useEffect(() => {
+      if(splitwiseExpenses.status === 'idle'){
+        dispatch(fetchSplitwiseExpenses())
+      }
+
+    }, [dispatch,splitwiseExpenses.status]);
+
 
   const calculateStats = () => {
     const thisMonth = new Date().getMonth()
     const thisYear = new Date().getFullYear()
+      console.log("splitwise",splitwiseExpenses.splitwiseExpenses)
     
-    const monthlyExpenses = expenses.filter(expense => {
+    const monthlyExpenses = splitwiseExpenses.splitwiseExpenses.filter(expense => {
       const expenseDate = new Date(expense.date)
       return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear
     })
 
     const totalSplitwise = monthlyExpenses.reduce((sum, expense) => sum + expense.userShare, 0)
-    const linkedCount = expenses.filter(expense => expense.isLinked).length
-    const uniqueGroups = new Set(expenses.map(expense => expense.groupName)).size
+    const linkedCount = splitwiseExpenses.splitwiseExpenses.filter(expense => expense.isLinked).length
+    console.log("linkedCount",totalSplitwise)
+    const uniqueGroups = new Set(splitwiseExpenses.splitwiseExpenses.map(expense => expense.groupName)).size
     
     setStats({
       totalSplitwise,
-      linkedExpenses: { linked: linkedCount, total: expenses.length },
+      linkedExpenses: { linked: linkedCount, total: splitwiseExpenses.splitwiseExpenses.length },
       activeGroups: uniqueGroups,
-      syncProgress: expenses.length > 0 ? Math.round((linkedCount / expenses.length) * 100) : 33
+      syncProgress: splitwiseExpenses.splitwiseExpenses.length > 0 ? Math.round((linkedCount / splitwiseExpenses.splitwiseExpenses.length) * 100) : 33
     })
   }
 
@@ -94,6 +110,7 @@ export function SplitwiseDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-300 mb-4">Connect your Splitwise account to get started.</p>
+            <Button onClick={connect}>Connect Splitwise</Button>
           </CardContent>
         </Card>
       </div>
@@ -214,41 +231,52 @@ export function SplitwiseDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Sample Splitwise Expenses */}
-              <div className="bg-gray-750 border border-gray-600 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-white font-medium text-base">Dinner at Italian Restaurant</h3>
-                    <p className="text-gray-400 text-sm">Weekend Friends</p>
-                    <p className="text-gray-500 text-xs mt-1">2024-01-15</p>
-                    <div className="flex items-center space-x-2 mt-3">
-                      <Badge variant="outline" className="text-xs border-blue-500 text-blue-400 bg-blue-500/10">
-                        Food & Drinks
-                      </Badge>
-                      <Badge variant="destructive" className="text-xs">
-                        Unlinked
-                      </Badge>
+              {splitwiseExpenses.splitwiseExpenses.map((expense) => (
+                <div key={expense.id} className="bg-gray-750 border border-gray-600 rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium text-base">{expense.description}</h3>
+                      <p className="text-gray-400 text-sm">{expense.groupName}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {new Date(expense.date).toLocaleDateString()}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-3">
+                        <Badge variant="outline" className="text-xs border-blue-500 text-blue-400 bg-blue-500/10">
+                          {expense.category || 'General'}
+                        </Badge>
+                        <Badge 
+                          variant={expense.isLinked ? "default" : "destructive"} 
+                          className="text-xs"
+                        >
+                          {expense.isLinked ? "Linked" : "Unlinked"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center space-x-1 mt-2 text-xs text-gray-400">
+                        <Users className="w-3 h-3" />
+                        <span>
+                          {expense.participants?.map(p => p.first_name).join(', ') || 'No participants'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1 mt-2 text-xs text-gray-400">
-                      <Users className="w-3 h-3" />
-                      <span>You, Alice, Bob</span>
+                    <div className="text-right ml-4">
+                      <p className="text-white font-bold text-lg">₹{expense.userShare}</p>
+                      <p className="text-gray-400 text-xs">of ₹{expense.totalAmount}</p>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="mt-3 border-gray-600 text-gray-300 hover:bg-gray-700"
+                        onClick={() => handleLinkExpense(expense)}
+                      >
+                        <LinkIcon className="w-3 h-3 mr-1" />
+                        {expense.isLinked ? "View" : "Link"}
+                      </Button>
                     </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="text-white font-bold text-lg">₹800</p>
-                    <p className="text-gray-400 text-xs">of ₹2400</p>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="mt-3 border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      <LinkIcon className="w-3 h-3 mr-1" />
-                      Link
-                    </Button>
                   </div>
                 </div>
-              </div>
+              ))}
 
-              <div className="bg-gray-750 border border-gray-600 rounded-lg p-4">
+
+              {/* <div className="bg-gray-750 border border-gray-600 rounded-lg p-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h3 className="text-white font-medium text-base">Uber to Airport</h3>
@@ -280,7 +308,7 @@ export function SplitwiseDashboard() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </CardContent>
           </Card>
 

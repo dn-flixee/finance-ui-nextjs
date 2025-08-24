@@ -1,144 +1,123 @@
-import { RootState } from "@/lib/store";
-import { createSlice } from "@reduxjs/toolkit";
-import { createAppAsyncThunk } from "@/lib/withTypes";
-import axios from "axios";
-import { toast } from "@/components/ui/use-toast";
-import { CreateTransferInput, Transfer, UpdateTransferInput } from "@/lib/types";
+// src/lib/features/transfers/transfersSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { RootState } from '@/lib/store'
+import axios from 'axios'
+import { toast } from '@/components/ui/use-toast'
+import { Transfer, CreateTransferInput, UpdateTransferInput } from '@/lib/types'
 
-interface TransferState {
-    transfers: Transfer[];
-    status: "idle" | "loading" | "succeeded" | "failed";
-    error: string | null;
+interface TransfersState {
+  transfers: Transfer[]
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
 }
 
-const intialState: TransferState = {
-    status: "idle",
-    transfers: [],
-    error: null,
-};
+const initialState: TransfersState = {
+  transfers: [],
+  status: 'idle',
+  error: null,
+}
 
-const TRANSFER_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/transfer";
+const TRANSFERS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/transfers'
 
-export const fetchTransfers = createAppAsyncThunk(
-    "transfer/fetchTransfers",
-    async () => {
-        const res = await axios.get(TRANSFER_API_BASE_URL);
-        console.log("transfer", res.data)
-        return res.data.map((transfer: Transfer) => {
-            return transfer
-        });
+// Async thunks
+export const fetchTransfers = createAsyncThunk(
+  'transfers/fetchTransfers',
+  async (params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+
+    const url = `${TRANSFERS_API_BASE_URL}${searchParams.toString() ? '?' + searchParams.toString() : ''}`
+    const response = await axios.get(url)
+    return response.data
+  }
+)
+
+export const createTransfer = createAsyncThunk(
+  'transfers/createTransfer',
+  async (transfer: CreateTransferInput) => {
+    const response = await axios.post(TRANSFERS_API_BASE_URL, transfer)
+    return response.data
+  }
+)
+
+export const updateTransfer = createAsyncThunk(
+  'transfers/updateTransfer',
+  async (transfer: UpdateTransferInput) => {
+    const response = await axios.put(TRANSFERS_API_BASE_URL, transfer)
+    return response.data
+  }
+)
+
+export const deleteTransfer = createAsyncThunk(
+  'transfers/deleteTransfer',
+  async (transferId: string) => {
+    await axios.delete(`${TRANSFERS_API_BASE_URL}?transferId=${transferId}`)
+    return transferId
+  }
+)
+
+// Slice
+const transfersSlice = createSlice({
+  name: 'transfers',
+  initialState,
+  reducers: {
+    clearError: (state) => {
+      state.error = null
     }
-);
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchTransfers.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(fetchTransfers.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.transfers = action.payload.transfers || action.payload
+      })
+      .addCase(fetchTransfers.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to fetch transfers'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch transfers',
+        })
+      })
+      
+      .addCase(createTransfer.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.transfers.unshift(action.payload)
+        toast({
+          description: 'Transfer created successfully!',
+        })
+      })
+      
+      .addCase(updateTransfer.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        const index = state.transfers.findIndex(transfer => transfer.transferId === action.payload.transferId)
+        if (index !== -1) {
+          state.transfers[index] = action.payload
+        }
+        toast({
+          description: 'Transfer updated successfully!',
+        })
+      })
+      
+      .addCase(deleteTransfer.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.transfers = state.transfers.filter(transfer => transfer.transferId !== action.payload)
+        toast({
+          description: 'Transfer deleted successfully!',
+        })
+      })
+  },
+})
 
-export const saveTransfer = createAppAsyncThunk(
-    "transfer/saveTransfer",
-    async (transfer: CreateTransferInput) => {
-        const res = await axios.post(TRANSFER_API_BASE_URL, transfer);
-        return res.data;
-    }
-);
+export const { clearError } = transfersSlice.actions
 
-export const updateTransfer = createAppAsyncThunk(
-    "transfer/updateTransfer",
-    async (transfer: UpdateTransferInput) => {
-        const res = await axios.put(
-            `${TRANSFER_API_BASE_URL}/${transfer.transferId}`,
-            transfer
-        );
-        return res.data;
-    }
-);
-export const deleteTransfer = createAppAsyncThunk(
-    "transfer/deleteTransfer",
-    async (transferid: string) => {
-        console.log("Delete Transfer:")
-        console.log(transferid)
-        const res = await axios.delete(`${TRANSFER_API_BASE_URL}/${transferid}`);
-        return transferid;
-    }
-);
+export const selectTransfers = (state: RootState) => state.transfers.transfers
+export const selectTransfersStatus = (state: RootState) => state.transfers.status
+export const selectTransfersError = (state: RootState) => state.transfers.error
 
-export const transferSlice = createSlice({
-    name: "transfers",
-    initialState: intialState,
-    reducers: {},
-    extraReducers: (builder) => {
-        // fetchTransfers builder
-        builder.addCase(fetchTransfers.pending, (state) => {
-            state.status = "loading";
-        });
-        builder.addCase(fetchTransfers.fulfilled, (state, action) => {
-            (state.status = "succeeded"), (state.transfers = action.payload);
-        });
-        builder.addCase(fetchTransfers.rejected, (state, action) => {
-            (state.status = "failed"),
-                (state.error = action.error.message ?? "Unknown Error");
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem with fetching transfer data.",
-            });
-        });
-
-        // saveTransfers builder
-        builder.addCase(saveTransfer.fulfilled, (state, action) => {
-            state.transfers.push(action.payload);
-            toast({
-                description: "Transfer saved successfully!",
-              })
-        });
-        builder.addCase(saveTransfer.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // updateTransfers builder
-        builder.addCase(updateTransfer.fulfilled, (state, action) => {
-                (state.transfers = state.transfers.map((transfer) => {
-                    if (transfer.transferId === action.payload.transferId) {
-                        return action.payload
-                    } else {
-                        return transfer
-
-                    }
-                }));
-                toast({
-                    description: "Transfer updated successfully!",
-                  })
-        });
-        builder.addCase(updateTransfer.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // deleteTransfers builder
-        builder.addCase(deleteTransfer.fulfilled, (state, action) => {
-            state.transfers = state.transfers.filter((transfer) => 
-                transfer.transferId !== action.payload
-            );
-            toast({
-                description: "Transfer deleted successfully!",
-              })
-        });
-        builder.addCase(deleteTransfer.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-    },
-});
-
-export const selectTransfers = (state: RootState) => state.transfers;
-export default transferSlice.reducer;
+export default transfersSlice.reducer

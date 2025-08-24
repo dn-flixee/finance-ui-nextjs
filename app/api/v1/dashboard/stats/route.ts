@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id
-    const currentMonth = new Date()
-    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-    const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+    const currentDate = new Date()
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
 
     const [
       accounts,
@@ -23,11 +23,12 @@ export async function GET(request: NextRequest) {
       monthlyIncome,
       monthlyExpenses,
       incomeSourcesCount,
-      expenseSourcesCount
+      expenseSourcesCount,
+      recentTransactions
     ] = await Promise.all([
       prisma.financeAccount.findMany({
         where: { userId },
-        select: { balance: true }
+        select: { balance: true, accountType: true }
       }),
       prisma.income.aggregate({
         where: { userId },
@@ -62,10 +63,40 @@ export async function GET(request: NextRequest) {
       }),
       prisma.expenseSource.count({
         where: { userId }
-      })
+      }),
+      // Get recent transactions from all types
+      Promise.all([
+        prisma.income.findMany({
+          where: { userId },
+          include: { account: true },
+          orderBy: { createdAt: 'desc' },
+          take: 3
+        }),
+        prisma.expense.findMany({
+          where: { userId },
+          include: { account: true },
+          orderBy: { createdAt: 'desc' },
+          take: 3
+        }),
+        prisma.transfer.findMany({
+          where: { userId },
+          include: { fromAccount: true, toAccount: true },
+          orderBy: { createdAt: 'desc' },
+          take: 3
+        })
+      ])
     ])
 
     const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
+
+    // Combine and sort recent transactions
+    const [recentIncomes, recentExpenses, recentTransfers] = recentTransactions
+    const allRecentTransactions = [
+      ...recentIncomes.map(t => ({ ...t, type: 'income' })),
+      ...recentExpenses.map(t => ({ ...t, type: 'expense' })),
+      ...recentTransfers.map(t => ({ ...t, type: 'transfer' }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5)
 
     const stats = {
       totalIncome: totalIncome._sum.amount || 0,
@@ -75,7 +106,8 @@ export async function GET(request: NextRequest) {
       monthlyIncome: monthlyIncome._sum.amount || 0,
       monthlyExpenses: monthlyExpenses._sum.amount || 0,
       incomeSourcesCount,
-      expenseSourcesCount
+      expenseSourcesCount,
+      recentTransactions: allRecentTransactions
     }
 
     return NextResponse.json({ stats })

@@ -1,158 +1,130 @@
-import { RootState } from "@/lib/store";
-import { createSlice } from "@reduxjs/toolkit";
-import { createAppAsyncThunk } from "@/lib/withTypes";
-import axios from "axios";
-import { toast } from "@/components/ui/use-toast";
-import { IncomeSource,CreateIncomeSourceInput,UpdateIncomeSourceInput } from "@/lib/types";
+// src/lib/features/incomeSources/incomeSourcesSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { RootState } from '@/lib/store'
+import axios from 'axios'
+import { toast } from '@/components/ui/use-toast'
+import { IncomeSource, CreateIncomeSourceInput, UpdateIncomeSourceInput } from '@/lib/types'
 
-
-interface IncomeSourceState {
-    incomeSources: IncomeSource[];
-    status: "idle" | "loading" | "succeeded" | "failed";
-    error: string | null;
+interface IncomeSourcesState {
+  incomeSources: IncomeSource[]
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
 }
 
-const intialState: IncomeSourceState = {
-    status: "idle",
-    incomeSources: [],
-    error: null,
-};
+const initialState: IncomeSourcesState = {
+  incomeSources: [],
+  status: 'idle',
+  error: null,
+}
 
-const INCOME_SOURCE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/incomeSource";
+const INCOME_SOURCES_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/incomeSource'
 
-export const fetchIncomeSources = createAppAsyncThunk(
-    "incomeSource/fetchIncomeSources",
-    async () => {
-        const res = await axios.get(INCOME_SOURCE_API_BASE_URL);
-        console.log("fetch income Source")
-        console.log(res.data)
-        return res.data.map((incomeSource : IncomeSource) =>{
-            return {
-                incomeSourceId: incomeSource.incomeSourceId,
-                name: incomeSource.name,
-                goal: incomeSource.goal,
-            };
-        });
+// Async thunks
+export const fetchIncomeSources = createAsyncThunk(
+  'incomeSources/fetchIncomeSources',
+  async () => {
+    const response = await axios.get(INCOME_SOURCES_API_BASE_URL)
+    return response.data
+  }
+)
+
+export const createIncomeSource = createAsyncThunk(
+  'incomeSources/createIncomeSource',
+  async (incomeSource: CreateIncomeSourceInput) => {
+    const response = await axios.post(INCOME_SOURCES_API_BASE_URL, incomeSource)
+    return response.data
+  }
+)
+
+export const updateIncomeSource = createAsyncThunk(
+  'incomeSources/updateIncomeSource',
+  async (incomeSource: UpdateIncomeSourceInput) => {
+    const response = await axios.put(INCOME_SOURCES_API_BASE_URL, incomeSource)
+    return response.data
+  }
+)
+
+export const deleteIncomeSource = createAsyncThunk(
+  'incomeSources/deleteIncomeSource',
+  async (incomeSourceId: string) => {
+    await axios.delete(`${INCOME_SOURCES_API_BASE_URL}?incomeSourceId=${incomeSourceId}`)
+    return incomeSourceId
+  }
+)
+
+// Slice
+const incomeSourcesSlice = createSlice({
+  name: 'incomeSources',
+  initialState,
+  reducers: {
+    clearError: (state) => {
+      state.error = null
     }
-);
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchIncomeSources.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(fetchIncomeSources.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.incomeSources = action.payload.incomeSources || action.payload
+      })
+      .addCase(fetchIncomeSources.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to fetch income sources'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch income sources',
+        })
+      })
+      
+      .addCase(createIncomeSource.pending, (state) => {
+        state.status = 'loading'
+      })
+      .addCase(createIncomeSource.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.incomeSources.unshift(action.payload)
+        toast({
+          description: 'Income source created successfully!',
+        })
+      })
+      .addCase(createIncomeSource.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message || 'Failed to create income source'
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to create income source',
+        })
+      })
+      
+      .addCase(updateIncomeSource.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        const index = state.incomeSources.findIndex(source => source.incomeSourceId === action.payload.incomeSourceId)
+        if (index !== -1) {
+          state.incomeSources[index] = action.payload
+        }
+        toast({
+          description: 'Income source updated successfully!',
+        })
+      })
+      
+      .addCase(deleteIncomeSource.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.incomeSources = state.incomeSources.filter(source => source.incomeSourceId !== action.payload)
+        toast({
+          description: 'Income source deleted successfully!',
+        })
+      })
+  },
+})
 
-export const saveIncomeSource = createAppAsyncThunk(
-    "incomeSource/saveIncomeSources",
-    async (incomeSource: CreateIncomeSourceInput) => {
-        const res = await axios.post(INCOME_SOURCE_API_BASE_URL,incomeSource);
-        return res.data;
-    }
-);
+export const { clearError } = incomeSourcesSlice.actions
 
-export const updateIncomeSource = createAppAsyncThunk(
-    "incomeSource/updateIncomeSource",
-    async (incomeSource: UpdateIncomeSourceInput) => {
-        const res = await axios.put(
-            `${INCOME_SOURCE_API_BASE_URL}/${incomeSource.incomeSourceId}`,
-            incomeSource
-        );
-        return res.data;
-    }
-);
-export const deleteIncomeSource = createAppAsyncThunk(
-    "incomeSource/deleteIncomeSource",
-    async (incomeSourceid: string) => {
-        const res = await axios.delete(`${INCOME_SOURCE_API_BASE_URL}/${incomeSourceid}`);
-        return incomeSourceid;
-    }
-);
+export const selectIncomeSources = (state: RootState) => state.incomeSources.incomeSources
+export const selectIncomeSourcesStatus = (state: RootState) => state.incomeSources.status
+export const selectIncomeSourcesError = (state: RootState) => state.incomeSources.error
 
-export const incomeSourceSlice = createSlice({
-    name: "incomeSources",
-    initialState: intialState,
-    reducers: {},
-    extraReducers: (builder) => {
-        // fetchIncomeSources builder
-        builder.addCase(fetchIncomeSources.pending, (state) => {
-            state.status = "loading";
-        });
-        builder.addCase(fetchIncomeSources.fulfilled, (state, action) => {
-            (state.status = "succeeded"), (state.incomeSources = action.payload);
-        });
-        builder.addCase(fetchIncomeSources.rejected, (state, action) => {
-            (state.status = "failed"),
-                (state.error = action.error.message ?? "Unknown Error");
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem with fetching incomeSource data.",
-            });
-        });
-
-        // saveIncomeSources builder
-        builder.addCase(saveIncomeSource.fulfilled, (state, action) => {
-            state.incomeSources.push(action.payload);
-            toast({
-                description: "Income Source saved successfully!",
-              })
-        });
-        builder.addCase(saveIncomeSource.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // updateIncomeSources builder
-        builder.addCase(updateIncomeSource.fulfilled, (state, action) => {
-                (state.incomeSources = state.incomeSources.map((incomeSource) => {
-                    if (incomeSource.incomeSourceId === action.payload.incomeSourceId) {
-                        return action.payload
-                    } else {
-                        return incomeSource
-
-                    }
-                }));
-                toast({
-                    description: "Income Source updated successfully!",
-                  })
-        });
-        builder.addCase(updateIncomeSource.rejected, (state, action) => {
-            toast({
-                variant: "destructive",
-                duration: 5000,
-                title: "Uh oh! Something went wrong.",
-                description: action.error.message ?? "Unknown Error",
-            });
-        });
-
-        // deleteIncomeSources builder
-        builder.addCase(deleteIncomeSource.fulfilled, (state, action) => {
-            state.incomeSources = state.incomeSources.filter((incomeSource) => 
-                incomeSource.incomeSourceId !== action.payload
-            );
-            toast({
-                description: "Income Source deleted successfully!",
-              })
-        });
-        builder.addCase(deleteIncomeSource.rejected, (state, action) => {
-            console.log(action.error.message)
-            if(action.error.message === "Request failed with status code 400"){
-                toast({
-                    variant: "destructive",
-                    duration:5000,
-                    title: "Uh oh! Something went wrong.",
-                    description: "Can't delete the income source because there are incomes connected to income source.",
-                })
-            }
-            else{
-                toast({
-                    variant: "destructive",
-                    duration:5000,
-                  title: "Uh oh! Something went wrong.",
-                  description: "There was a problem with your request.",
-                })}
-        });
-    },
-});
-
-export const selectIncomeSources = (state: RootState) => state.incomeSources;
-export default incomeSourceSlice.reducer;
+export default incomeSourcesSlice.reducer

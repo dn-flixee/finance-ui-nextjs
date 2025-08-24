@@ -17,15 +17,35 @@ const intialState: SplitwiseExpenseState = {
     error: null,
 };
 
-const SPLITWISE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/v1/splitwise";
+const SPLITWISE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + "/api/splitwise/expenses";
 
 export const fetchSplitwiseExpenses = createAppAsyncThunk(
     "splitwise/fetchSplitwiseExpenses",
     async () => {
         const res = await axios.get(SPLITWISE_API_BASE_URL);
-        console.log("splitwise", res.data)
         return res.data.map((splitwiseExpense: SplitwiseExpense) => {
-            return splitwiseExpense
+            console.log(splitwiseExpense)
+            return {
+                    id: splitwiseExpense.id,
+                  splitwiseId: splitwiseExpense.splitwiseId,
+                  description: splitwiseExpense.description,
+                  totalAmount: splitwiseExpense.totalAmount,
+                  userShare: splitwiseExpense.userShare,
+                  currency: splitwiseExpense.currency,
+                  date: splitwiseExpense.date,
+                  category: splitwiseExpense.category,                  
+                  // Splitwise metadata
+                  groupId: splitwiseExpense.groupId,
+                  groupName: splitwiseExpense.groupName,
+                  paidBy: splitwiseExpense.paidBy,
+                  participants: splitwiseExpense.participants,
+                  
+                  // Linking
+                  linkedExpenseId: splitwiseExpense.linkedExpenseId,
+                  isLinked: splitwiseExpense.isLinked,
+                  
+                  userId: splitwiseExpense.userId
+            }
         });
     }
 );

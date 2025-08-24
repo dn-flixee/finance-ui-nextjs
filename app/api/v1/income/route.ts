@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { transformIncome } from '@/lib/transformers'
 import { z } from 'zod'
 import { TransactionSource } from '@/lib/types'
 
@@ -53,11 +54,11 @@ export async function GET(request: NextRequest) {
     const total = recent ? incomes.length : await prisma.income.count({ where })
 
     if (recent) {
-      return NextResponse.json({ incomes })
+      return NextResponse.json({ incomes: incomes.map(transformIncome) })
     }
 
     return NextResponse.json({
-      incomes,
+      incomes: incomes.map(transformIncome),
       pagination: {
         page,
         limit,
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(income, { status: 201 })
+    return NextResponse.json(transformIncome(income), { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
@@ -113,4 +114,93 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT and DELETE methods similar to expenses...
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { incomeId, ...updateData } = body
+    
+    if (!incomeId) {
+      return NextResponse.json({ error: 'Income ID is required' }, { status: 400 })
+    }
+
+    const updateSchema = incomeSchema.partial()
+    const validatedData = updateSchema.parse(updateData)
+    
+    const existingIncome = await prisma.income.findFirst({
+      where: {
+        incomeId,
+        userId: session.user.id
+      }
+    })
+    
+    if (!existingIncome) {
+      return NextResponse.json({ error: 'Income not found' }, { status: 404 })
+    }
+    
+    const income = await prisma.income.update({
+      where: { incomeId },
+      data: {
+        ...validatedData,
+        date: validatedData.date ? new Date(validatedData.date) : undefined,
+        updatedAt: new Date()
+      },
+      include: {
+        account: true,
+        incomeSource: true
+      }
+    })
+    
+    return NextResponse.json(transformIncome(income))
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Validation failed',
+        details: error.errors 
+      }, { status: 400 })
+    }
+    
+    console.error('Error updating income:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const incomeId = searchParams.get('incomeId')
+    
+    if (!incomeId) {
+      return NextResponse.json({ error: 'Income ID is required' }, { status: 400 })
+    }
+
+    const income = await prisma.income.findFirst({
+      where: {
+        incomeId,
+        userId: session.user.id
+      }
+    })
+    
+    if (!income) {
+      return NextResponse.json({ error: 'Income not found' }, { status: 404 })
+    }
+    
+    await prisma.income.delete({
+      where: { incomeId }
+    })
+    
+    return NextResponse.json({ message: 'Income deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting income:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}

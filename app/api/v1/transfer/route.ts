@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { transformTransfer } from '@/lib/transformers'
 import { z } from 'zod'
-import { TransactionSource } from '@/types'
+import { TransactionSource } from '@/lib/types'
 
 const transferSchema = z.object({
   name: z.string().min(1),
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     const total = await prisma.transfer.count({ where })
 
     return NextResponse.json({
-      transfers,
+      transfers: transfers.map(transformTransfer),
       pagination: {
         page,
         limit,
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
         name: validatedData.name,
         amount: validatedData.amount,
         date: new Date(validatedData.date),
-        fromAccountId: validatedData.fromAccountId || null',
+        fromAccountId: validatedData.fromAccountId || null,
         toAccountId: validatedData.toAccountId || null,
         userId: session.user.id,
         iconUrl: validatedData.iconUrl || null,
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(transfer, { status: 201 })
+    return NextResponse.json(transformTransfer(transfer), { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
@@ -126,6 +127,97 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('Error creating transfer:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { transferId, ...updateData } = body
+    
+    if (!transferId) {
+      return NextResponse.json({ error: 'Transfer ID is required' }, { status: 400 })
+    }
+
+    const updateSchema = transferSchema.partial()
+    const validatedData = updateSchema.parse(updateData)
+    
+    const existingTransfer = await prisma.transfer.findFirst({
+      where: {
+        transferId,
+        userId: session.user.id
+      }
+    })
+    
+    if (!existingTransfer) {
+      return NextResponse.json({ error: 'Transfer not found' }, { status: 404 })
+    }
+    
+    const transfer = await prisma.transfer.update({
+      where: { transferId },
+      data: {
+        ...validatedData,
+        date: validatedData.date ? new Date(validatedData.date) : undefined,
+        updatedAt: new Date()
+      },
+      include: {
+        fromAccount: true,
+        toAccount: true
+      }
+    })
+    
+    return NextResponse.json(transformTransfer(transfer))
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Validation failed',
+        details: error.errors 
+      }, { status: 400 })
+    }
+    
+    console.error('Error updating transfer:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const transferId = searchParams.get('transferId')
+    
+    if (!transferId) {
+      return NextResponse.json({ error: 'Transfer ID is required' }, { status: 400 })
+    }
+
+    const transfer = await prisma.transfer.findFirst({
+      where: {
+        transferId,
+        userId: session.user.id
+      }
+    })
+    
+    if (!transfer) {
+      return NextResponse.json({ error: 'Transfer not found' }, { status: 404 })
+    }
+    
+    await prisma.transfer.delete({
+      where: { transferId }
+    })
+    
+    return NextResponse.json({ message: 'Transfer deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting transfer:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

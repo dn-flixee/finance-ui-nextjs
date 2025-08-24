@@ -7,7 +7,7 @@ import expenseSourceReducer from './features/expenseSource/expenseSourceSlice'
 import accountReducer from './features/account/accountSlice'
 import transferReducer from './features/transfer/transferSlice'
 import splitwiseExpenseReducer from './features/splitwise/splitwiseSlice'
-
+import dashboardReducer from './features/dashboard/dashboardSlice'
 export const makeStore = () => {
   return configureStore({
     reducer: {
@@ -17,8 +17,8 @@ export const makeStore = () => {
       expenseSources: expenseSourceReducer,
       accounts: accountReducer,
       transfers: transferReducer,
-      splitwiseExpenses: splitwiseExpenseReducer
-
+      splitwiseExpenses: splitwiseExpenseReducer,
+      dashboard:dashboardReducer
     }
   })
 }

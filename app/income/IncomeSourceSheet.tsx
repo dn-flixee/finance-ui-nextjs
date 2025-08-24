@@ -1,125 +1,192 @@
+// src/app/(dashboard)/incomes/IncomeSourceSheet.tsx
 "use client"
-import React, { useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { deleteIncomeSource, saveIncomeSource, updateIncomeSource } from '@/lib/features/incomeSource/incomeSourceSlice'
+import { Label } from "@/components/ui/label"
+import { useToast } from '@/components/ui/use-toast'
 import { useAppDispatch } from '@/lib/hooks'
+import { 
+  createIncomeSource, 
+  updateIncomeSource, 
+  deleteIncomeSource 
+} from '@/lib/features/incomeSource/incomeSourceSlice'
 import { IncomeSource } from '@/lib/types'
-
+import { Trash2, Loader2 } from 'lucide-react'
 
 interface IncomeSourceSheetProps {
-  isOpen: boolean;
-  onClose: () => void;
-  incomeSourceToEdit: IncomeSource | null;
+  isOpen: boolean
+  onClose: () => void
+  incomeSourceToEdit?: IncomeSource | null
 }
 
-function IncomeSourceSheet({ isOpen, onClose, incomeSourceToEdit }: IncomeSourceSheetProps) {
+export default function IncomeSourceSheet({
+  isOpen,
+  onClose,
+  incomeSourceToEdit
+}: IncomeSourceSheetProps) {
+  const dispatch = useAppDispatch()
+  const { toast } = useToast()
 
-  const dispatch = useAppDispatch();
+  const [formData, setFormData] = useState({
+    name: '',
+    goal: ''
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Initialize form when opening sheet
   useEffect(() => {
-    if (incomeSourceToEdit) {
-        form.setValue("name", incomeSourceToEdit.name);
-        form.setValue("goal", incomeSourceToEdit.goal);
-    } else {
-        form.setValue("name", "");
-        form.resetField("goal");
-        
+    if (isOpen) {
+      if (incomeSourceToEdit) {
+        setFormData({
+          name: incomeSourceToEdit.name,
+          goal: incomeSourceToEdit.goal.toString()
+        })
+      } else {
+        setFormData({
+          name: '',
+          goal: ''
+        })
+      }
     }
-  }, [incomeSourceToEdit])
+  }, [isOpen, incomeSourceToEdit])
 
-  
-  const addIncomeSource = z.object({
-    name: z.string().min(1).max(255),
-    goal: z.coerce.number().min(0)
-  })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
 
-  function handleSubmit(values: z.infer<typeof addIncomeSource>) {
-    console.log("save button press")
-    if(incomeSourceToEdit){
-        dispatch(updateIncomeSource({
+    try {
+      const sourceData = {
+        name: formData.name,
+        goal: parseFloat(formData.goal)
+      }
+
+      if (incomeSourceToEdit) {
+        await dispatch(updateIncomeSource({
           incomeSourceId: incomeSourceToEdit.incomeSourceId,
-          name: values.name,
-          goal: values.goal
-        }))
-        }else{
-          dispatch(saveIncomeSource(values))
-        }
+          ...sourceData
+        })).unwrap()
+      } else {
+        await dispatch(createIncomeSource(sourceData)).unwrap()
+      }
+
+      onClose()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${incomeSourceToEdit ? 'update' : 'create'} income source`,
+      })
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-  const form = useForm<z.infer<typeof addIncomeSource>>({
-    resolver : zodResolver(addIncomeSource)
-  })
+  const handleDelete = async () => {
+    if (!incomeSourceToEdit) return
 
-  const removeIncomeSource = () =>{
-    if(incomeSourceToEdit)
-      dispatch(deleteIncomeSource(incomeSourceToEdit.incomeSourceId))
-}
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteIncomeSource(incomeSourceToEdit.incomeSourceId)).unwrap()
+      onClose()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete income source",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="bg-gray-900 text-white">
+      <SheetContent className="bg-gray-900 border-gray-700 text-white">
         <SheetHeader>
-          <SheetTitle className="text-white">{incomeSourceToEdit ? 'Edit Income Source' : 'Add Income Source'}</SheetTitle>
+          <SheetTitle className="text-white">
+            {incomeSourceToEdit ? 'Edit Income Source' : 'Add New Income Source'}
+          </SheetTitle>
+          <SheetDescription className="text-gray-400">
+            {incomeSourceToEdit ? 'Update your income source details' : 'Create a new income source with a goal'}
+          </SheetDescription>
         </SheetHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)}>
-              <FormField 
-                  control={form.control}  
-                  name="name" 
-                  render={({field})=>{
-                    return (<FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder='name' type='text' {...field}/>                   
-                      </FormControl>
-                      <FormMessage/>
-                    </FormItem>);
-                }}/>
-              <FormField 
-                control={form.control}  
-                name="goal" 
-                render={({field})=>{
-                  return (<FormItem>
-                    <FormLabel>Goal</FormLabel>
-                    <FormControl>
-                      <Input placeholder='goal' type='number' {...field}/>                   
-                    </FormControl>
-                    <FormMessage/>
-                  </FormItem>);
-                }}/>
-                <SheetFooter>
-                <SheetClose asChild>
-                  {incomeSourceToEdit?<AlertDialog>
-                    <AlertDialogTrigger>
-                    <Button className='mt-2' variant="destructive" type='button'>Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete your account
-                          and remove your data from our servers.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={removeIncomeSource}>Continue</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                    </AlertDialog>:null}
-                    </SheetClose>
-                        <Button type='submit' className='mt-2'>Submit</Button>
-                      </SheetFooter>
-                        </form>
-                    </Form>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+          <div>
+            <Label htmlFor="name" className="text-white">Source Name</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              placeholder="e.g., Full-time Job, Side Business"
+              required
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="goal" className="text-white">Monthly Goal (₹)</Label>
+            <Input
+              id="goal"
+              type="number"
+              step="0.01"
+              value={formData.goal}
+              onChange={(e) => setFormData({...formData, goal: e.target.value})}
+              placeholder="0.00"
+              required
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            {incomeSourceToEdit && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting || isLoading}
+                className="flex-1"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading || isDeleting}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || isDeleting}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              {incomeSourceToEdit ? 'Update' : 'Create'}
+            </Button>
+          </div>
+        </form>
       </SheetContent>
     </Sheet>
   )
 }
-export default IncomeSourceSheet;

@@ -1,3 +1,4 @@
+// src/app/api/v1/expenses/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
@@ -6,18 +7,17 @@ import { transformExpense } from '@/lib/transformers'
 import { z } from 'zod'
 import { TransactionSource } from '@/lib/types'
 
-// Updated schema to match new enhanced Expense model
 const expenseSchema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
   date: z.string().datetime().or(z.date()),
   accountId: z.string().min(1),
-  expenseSourceId: z.string().min(1).optional(), 
-  iconUrl: z.string().url().optional(), 
-  sourceType: z.nativeEnum(TransactionSource).optional(), 
-  sourceId: z.string().optional(), 
-  splitwiseExpenseId: z.string().optional(), 
-  isSplitwiseLinked: z.boolean().optional() 
+  expenseSourceId: z.string().min(1).optional(),
+  iconUrl: z.string().url().optional(),
+  sourceType: z.nativeEnum(TransactionSource).optional(),
+  sourceId: z.string().optional(),
+  splitwiseExpenseId: z.string().optional(),
+  isSplitwiseLinked: z.boolean().optional()
 })
 
 export async function GET(request: NextRequest) {
@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Add pagination and filtering support
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -45,7 +44,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         account: true,
-        expenseSource: true // ✅ This will be null if expenseSourceId is null
+        expenseSource: true
       },
       orderBy: recent ? { createdAt: 'desc' } : { date: 'desc' },
       ...(recent ? { take: limit } : {
@@ -54,7 +53,6 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    // ✅ Get total count for pagination (only if not recent)
     const total = recent ? expenses.length : await prisma.expense.count({ where })
     
     if (recent) {
@@ -86,24 +84,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = expenseSchema.parse(body)
     
-    // ✅ Enhanced expense creation with new fields
     const expense = await prisma.expense.create({
       data: {
         name: validatedData.name,
         amount: validatedData.amount,
         date: new Date(validatedData.date),
         accountId: validatedData.accountId,
-        expenseSourceId: validatedData.expenseSourceId || null, // ✅ Handle optional
+        expenseSourceId: validatedData.expenseSourceId || null,
         userId: session.user.id,
-        iconUrl: validatedData.iconUrl || null, // ✅ New field
-        sourceType: validatedData.sourceType || TransactionSource.MANUAL, // ✅ Default to MANUAL
-        sourceId: validatedData.sourceId || null, // ✅ New field
-        splitwiseExpenseId: validatedData.splitwiseExpenseId || null, // ✅ New field
-        isSplitwiseLinked: validatedData.isSplitwiseLinked || false // ✅ New field
+        iconUrl: validatedData.iconUrl || null,
+        sourceType: validatedData.sourceType || TransactionSource.MANUAL,
+        sourceId: validatedData.sourceId || null,
+        splitwiseExpenseId: validatedData.splitwiseExpenseId || null,
+        isSplitwiseLinked: validatedData.isSplitwiseLinked || false
       },
       include: {
         account: true,
-        expenseSource: true // ✅ Will be null if expenseSourceId is null
+        expenseSource: true
       }
     })
     
@@ -116,27 +113,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // ✅ Handle Prisma specific errors
-    if (error?.code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'Duplicate expense',
-        message: 'An expense with this information already exists' 
-      }, { status: 409 })
-    }
-    
-    if (error?.code === 'P2003') {
-      return NextResponse.json({ 
-        error: 'Invalid reference',
-        message: 'The specified account or expense source does not exist' 
-      }, { status: 400 })
-    }
-    
     console.error('Error creating expense:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
 
-// ✅ Add PUT method for updates
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -151,11 +132,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
     }
 
-    // Validate the update data (partial schema)
     const updateSchema = expenseSchema.partial()
     const validatedData = updateSchema.parse(updateData)
     
-    // ✅ Check if expense belongs to user
     const existingExpense = await prisma.expense.findFirst({
       where: {
         expenseId,
@@ -194,7 +173,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// ✅ Add DELETE method
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -209,7 +187,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
     }
 
-    // ✅ Check if expense belongs to user before deleting
     const expense = await prisma.expense.findFirst({
       where: {
         expenseId,

@@ -1,13 +1,14 @@
-// src/app/api/splitwise/expenses/route.ts
+// src/app/api/v1/splitwise/expenses/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { transformSplitwiseExpense } from '@/lib/transformers'
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -20,7 +21,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ expenses })
+    return NextResponse.json({ 
+      splitwiseExpenses: expenses.map(transformSplitwiseExpense)
+    })
 
   } catch (error) {
     console.error('Fetch Splitwise expenses error:', error)
