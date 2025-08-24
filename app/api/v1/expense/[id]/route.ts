@@ -4,13 +4,19 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformExpense } from '@/lib/transformers'
 import { z } from 'zod'
+import { TransactionSource } from '@/lib/types'
 
 const expenseUpdateSchema = z.object({
-  name: z.string().min(1).optional(),
-  amount: z.number().positive().optional(),
-  date: z.string().datetime().or(z.date()).optional(),
-  accountId: z.string().min(1).optional(),
-  expenseSourceId: z.string().min(1).optional()
+  name: z.string().min(1),
+  amount: z.number().positive(),
+  date: z.string().datetime().or(z.date()),
+  accountId: z.string().min(1),
+  expenseSourceId: z.string().min(1).optional(), 
+  iconUrl: z.string().url().optional(), 
+  sourceType: z.nativeEnum(TransactionSource).optional(), 
+  sourceId: z.string().optional(), 
+  splitwiseExpenseId: z.string().optional(), 
+  isSplitwiseLinked: z.boolean().optional() 
 })
 
 export async function GET(

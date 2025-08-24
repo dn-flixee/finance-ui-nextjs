@@ -90,14 +90,7 @@ export const incomeSlice = createSlice({
 
         // saveIncomes builder
         builder.addCase(saveIncome.fulfilled, (state, action) => {
-            state.incomes.push({
-                incomeId: action.payload.incomeId,
-                name: action.payload.name,
-                amount: action.payload.amount,
-                date: action.payload.date,
-                accountId: action.payload.accountId,
-                incomeSourceId: action.payload.incomeSourceId,
-            });
+            state.incomes.push(action.payload);
             toast({
                 description: "Income saved successfully!",
               })
@@ -115,23 +108,9 @@ export const incomeSlice = createSlice({
         builder.addCase(updateIncome.fulfilled, (state, action) => {
                 (state.incomes = state.incomes.map((income:Income) => {
                     if (income.incomeId === action.payload.incomeId) {
-                        return {
-                            incomeId: action.payload.incomeId,
-                            name: action.payload.name,
-                            amount: action.payload.amount,
-                            date: action.payload.date,
-                            accountId: action.payload.accountId,
-                            incomeSourceId: action.payload.incomeSourceId,
-                        }
+                        return action.payload
                     } else {
-                        return {
-                            incomeId: income.incomeId,
-                            name: income.name,
-                            amount: income.amount,
-                            date: income.date,
-                            accountId: income.accountId,
-                            incomeSourceId: income.incomeSourceId,
-                        }
+                        return income
 
                     }
                 }));

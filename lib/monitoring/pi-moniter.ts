@@ -2,7 +2,7 @@ export class RaspberryPiMonitor {
   static async getSystemStats() {
     try {
       // This would typically call a monitoring endpoint on the Pi
-      const response = await fetch('http://raspberrypi.local:8080/stats')
+      const response = await fetch('http://raspi.dn:8080/stats')
       return await response.json()
     } catch (error) {
       return {
@@ -16,7 +16,7 @@ export class RaspberryPiMonitor {
 
   static async getLLMStats() {
     try {
-      const response = await fetch('http://raspberrypi.local:11434/api/ps')
+      const response = await fetch('http://raspi.dn:11434/api/ps')
       const models = await response.json()
       
       return {

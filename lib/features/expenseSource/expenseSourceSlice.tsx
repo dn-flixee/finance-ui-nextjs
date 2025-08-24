@@ -111,17 +111,9 @@ export const expenseSourceSlice = createSlice({
         builder.addCase(updateExpenseSource.fulfilled, (state, action) => {
                 (state.expenseSources = state.expenseSources.map((expenseSource) => {
                     if (expenseSource.expenseSourceId === action.payload.expenseSourceId) {
-                        return {
-                            expenseSourceId: action.payload.expenseSourceId,
-                            name: action.payload.name,
-                            budget : action.payload.budget
-                        }
+                        return action.payload
                     } else {
-                        return {
-                            expenseSourceId: expenseSource.expenseSourceId,
-                            name: expenseSource.name,
-                            budget : expenseSource.budget
-                        }
+                        return expenseSource
 
                     }
                 }));

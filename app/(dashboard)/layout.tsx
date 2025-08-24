@@ -8,12 +8,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // const supabase = createServerSupabaseClient()
+  // const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  // if (!user) {
+  //   redirect('/login')
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">

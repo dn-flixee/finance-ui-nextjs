@@ -4,13 +4,17 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { transformTransfer } from '@/lib/transformers'
 import { z } from 'zod'
+import { TransactionSource } from '@/lib/types'
 
 const transferUpdateSchema = z.object({
-  name: z.string().min(1).optional(),
-  amount: z.number().positive().optional(),
-  date: z.string().datetime().or(z.date()).optional(),
-  fromAccountId: z.string().min(1),
-  toAccountId: z.string().min(1)
+  nname: z.string().min(1),
+  amount: z.number().positive(),
+  date: z.string().datetime().or(z.date()),
+  fromAccountId: z.string().min(1).optional(),
+  toAccountId: z.string().min(1).optional(),
+  iconUrl: z.string().url().optional(),
+  sourceType: z.nativeEnum(TransactionSource).optional(),
+  sourceId: z.string().optional()
 })
 export async function GET(
   request: NextRequest,

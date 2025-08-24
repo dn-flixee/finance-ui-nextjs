@@ -25,14 +25,7 @@ export const fetchTransfers = createAppAsyncThunk(
         const res = await axios.get(TRANSFER_API_BASE_URL);
         console.log("transfer", res.data)
         return res.data.map((transfer: Transfer) => {
-            return {
-                transferId : transfer.transferId,
-                name : transfer.name,
-                fromAccountId : transfer.fromAccountId,
-                toAccountId : transfer.toAccountId,
-                amount : transfer.amount,
-                date : new Date(transfer.date)
-            };
+            return transfer
         });
     }
 );
@@ -90,14 +83,7 @@ export const transferSlice = createSlice({
 
         // saveTransfers builder
         builder.addCase(saveTransfer.fulfilled, (state, action) => {
-            state.transfers.push({
-                transferId : action.payload.transferId,
-                name : action.payload.name,
-                fromAccountId : action.payload.fromAccountId,
-                toAccountId : action.payload.toAccountId,
-                amount : action.payload.amount,
-                date : new Date(action.payload.date)
-            });
+            state.transfers.push(action.payload);
             toast({
                 description: "Transfer saved successfully!",
               })
@@ -115,23 +101,9 @@ export const transferSlice = createSlice({
         builder.addCase(updateTransfer.fulfilled, (state, action) => {
                 (state.transfers = state.transfers.map((transfer) => {
                     if (transfer.transferId === action.payload.transferId) {
-                        return {
-                            transferId : action.payload.transferId,
-                            name : action.payload.name,
-                            fromAccountId : action.payload.fromAccountId,
-                            toAccountId : action.payload.toAccountId,
-                            amount : action.payload.amount,
-                            date : new Date(action.payload.date)
-                        }
+                        return action.payload
                     } else {
-                        return {
-                            transferId : transfer.transferId,
-                            name : transfer.name,
-                            fromAccountId : transfer.fromAccountId,
-                            toAccountId : transfer.toAccountId,
-                            amount : transfer.amount,
-                            date : new Date(transfer.date)
-                        }
+                        return transfer
 
                     }
                 }));

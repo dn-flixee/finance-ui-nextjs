@@ -4,13 +4,17 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { transformIncome } from '@/lib/transformers'
+import { TransactionSource } from '@/lib/types'
 
 const updateIncomeSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  amount: z.number().positive().optional(),
-  date: z.string().datetime().or(z.date()).optional(),
-  accountId: z.string().optional(),
-  incomeSourceId: z.string().optional(),
+  name: z.string().min(1),
+  amount: z.number().positive(),
+  date: z.string().datetime().or(z.date()),
+  accountId: z.string().min(1),
+  incomeSourceId: z.string().min(1).optional(),
+  iconUrl: z.string().url().optional(),
+  sourceType: z.nativeEnum(TransactionSource).optional(),
+  sourceId: z.string().optional()
 })
 
 export async function PUT(

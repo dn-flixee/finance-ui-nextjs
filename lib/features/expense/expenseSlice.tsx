@@ -24,14 +24,7 @@ export const fetchExpenses = createAppAsyncThunk(
     async () => {
         const res = await axios.get(EXPENSE_API_BASE_URL);
         return res.data.map((expense: Expense) => {
-            return {
-                expenseId: expense.expenseId,
-                name: expense.name,
-                amount: expense.amount,
-                date: new Date(expense.date),
-                accountId: expense.accountId,
-                expenseSourceId: expense.expenseSourceId,
-            };
+            return expense
         });
     }
 );
@@ -89,14 +82,7 @@ export const expenseSlice = createSlice({
 
         // saveExpenses builder
         builder.addCase(saveExpense.fulfilled, (state, action) => {
-            state.expenses.push({
-                expenseId: action.payload.expenseId,
-                name: action.payload.name,
-                amount: action.payload.amount,
-                date: action.payload.date,
-                accountId: action.payload.accountId,
-                expenseSourceId: action.payload.expenseSourceId,
-            });
+            state.expenses.push(action.payload);
             toast({
                 description: "Expense saved successfully!",
               })
@@ -114,24 +100,9 @@ export const expenseSlice = createSlice({
         builder.addCase(updateExpense.fulfilled, (state, action) => {
                 (state.expenses = state.expenses.map((expense) => {
                     if (expense.expenseId === action.payload.expenseId) {
-                        return {
-                            expenseId: action.payload.expenseId,
-                            name: action.payload.name,
-                            amount: action.payload.amount,
-                            date: action.payload.date,
-                            accountId: action.payload.accountId,
-                            expenseSourceId: action.payload.expenseSourceId,
-                        }
+                        return action.payload
                     } else {
-                        return {
-                            expenseId: expense.expenseId,
-                            name: expense.name,
-                            amount: expense.amount,
-                            date: expense.date,
-                            accountId: expense.accountId,
-                            expenseSourceId: expense.expenseSourceId,
-                        }
-
+                        return expense
                     }
                 }));
                 toast({

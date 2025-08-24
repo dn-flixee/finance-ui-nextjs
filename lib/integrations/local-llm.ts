@@ -1,7 +1,7 @@
 export class LocalLLMService {
   private baseURL: string
   
-  constructor(baseURL = 'http://raspberrypi.local:11434') {
+  constructor(baseURL = 'http://raspi.dn:11434') {
     this.baseURL = baseURL
   }
 

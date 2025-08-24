@@ -3,11 +3,17 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { AccountType } from '@/lib/types'
 
 const createAccountSchema = z.object({
-  name: z.string().min(1).max(255),
-  startingBalance: z.number(),
-  type: z.number(),
+  name: z.string().min(1),
+  accountType: z.nativeEnum(AccountType),
+  balance: z.number(),
+  creditLimit: z.number().optional(),
+  iconUrl: z.string().url().optional(),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  routingNumber: z.string().optional()
 })
 
 export async function GET(request: NextRequest) {
@@ -26,8 +32,8 @@ export async function GET(request: NextRequest) {
     const transformedAccounts = accounts.map(account => ({
       accountId: account.accountId,
       name: account.name,
-      startingBalance: account.startingBalance,
-      type: account.type
+      startingBalance: account.balance,
+      type: account.accountType
     }))
 
     return NextResponse.json(transformedAccounts)
@@ -60,8 +66,8 @@ export async function POST(request: NextRequest) {
     const transformedAccount = {
       accountId: account.accountId,
       name: account.name,
-      startingBalance: account.startingBalance,
-      type: account.type
+      startingBalance: account.balance,
+      type: account.accountType
     }
 
     return NextResponse.json(transformedAccount, { status: 201 })

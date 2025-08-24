@@ -1,62 +1,76 @@
+// src/hooks/use-chat.ts
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { useSession } from 'next-auth/react'
 
 interface ChatMessage {
   id: string
   content: string
-  role: 'user' | 'assistant'
+  role: 'USER' | 'ASSISTANT'
   createdAt: Date
 }
 
 export function useChat(sessionId?: string) {
+  const { data: session } = useSession()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId || null)
 
   useEffect(() => {
-    if (currentSessionId) {
+    if (currentSessionId && session?.user) {
       loadMessages()
     }
-  }, [currentSessionId])
+  }, [currentSessionId, session])
 
   const loadMessages = async () => {
     if (!currentSessionId) return
 
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', currentSessionId)
-      .order('created_at', { ascending: true })
-
-    setMessages(data || [])
+    try {
+      const response = await fetch(`/api/chat/sessions/${currentSessionId}/messages`)
+      if (response.ok) {
+        const data = await response.json()
+        setMessages(data.map((msg: any) => ({
+          ...msg,
+          createdAt: new Date(msg.createdAt)
+        })))
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error)
+    }
   }
 
   const createSession = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    if (!session?.user?.id) {
+      throw new Error('Not authenticated: No user session found.')
+    }
 
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .insert({ user_id: user.id, title: 'New Chat' })
-      .select()
-      .single()
+    try {
+      const response = await fetch('/api/chat/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Chat' })
+      })
 
-    if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to create chat session')
+      }
 
-    setCurrentSessionId(data.id)
-    return data.id
+      const data = await response.json()
+      setCurrentSessionId(data.id)
+      return data.id
+    } catch (error) {
+      console.error('Create session error:', error)
+      throw error
+    }
   }
 
   const sendMessage = async (content: string) => {
     if (!content.trim()) return
 
-    const sessionId = currentSessionId || await createSession()
-    
-    // Add user message
+    // Add user message to UI immediately
     const userMessage = {
       id: crypto.randomUUID(),
       content,
-      role: 'user' as const,
+      role: 'USER' as const,
       createdAt: new Date()
     }
     
@@ -64,40 +78,48 @@ export function useChat(sessionId?: string) {
     setIsLoading(true)
 
     try {
-      // Save user message to database
-      await supabase.from('chat_messages').insert({
-        content,
-        role: 'user',
-        session_id: sessionId
-      })
-
-      // Get AI response
+      // Send message to your existing API endpoint
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, sessionId })
+        body: JSON.stringify({ 
+          message: content, 
+          sessionId: currentSessionId 
+        })
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get AI response')
+      }
 
       const data = await response.json()
       
+      // Update current session ID if it was created
+      if (data.sessionId && !currentSessionId) {
+        setCurrentSessionId(data.sessionId)
+      }
+      
+      // Add AI response to UI
       const aiMessage = {
         id: crypto.randomUUID(),
         content: data.response,
-        role: 'assistant' as const,
+        role: 'ASSISTANT' as const,
         createdAt: new Date()
       }
       
       setMessages(prev => [...prev, aiMessage])
 
-      // Save AI response to database
-      await supabase.from('chat_messages').insert({
-        content: data.response,
-        role: 'assistant',
-        session_id: sessionId
-      })
-
     } catch (error) {
       console.error('Chat error:', error)
+      // Add error message to chat
+      const errorMessage = {
+        id: crypto.randomUUID(),
+        content: 'Sorry, I encountered an error. Please try again.',
+        role: 'ASSISTANT' as const,
+        createdAt: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
     }
@@ -107,6 +129,7 @@ export function useChat(sessionId?: string) {
     messages,
     isLoading,
     sendMessage,
-    currentSessionId
+    currentSessionId,
+    isAuthenticated: !!session?.user
   }
 }

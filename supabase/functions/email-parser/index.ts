@@ -32,7 +32,7 @@ serve(async (req) => {
     }
 
     // Call local LLM for parsing
-    const localLLMUrl = Deno.env.get('LOCAL_LLM_URL') || 'http://raspberrypi.local:11434'
+    const localLLMUrl = Deno.env.get('LOCAL_LLM_URL') || 'http://raspi.dn:11434'
     
     const parsedData = await parseWithLocalLLM(email, localLLMUrl)
 
