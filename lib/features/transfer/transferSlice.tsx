@@ -17,7 +17,7 @@ const initialState: TransfersState = {
   error: null,
 }
 
-const TRANSFERS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/transfers'
+const TRANSFERS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/transfer'
 
 // Async thunks
 export const fetchTransfers = createAsyncThunk(

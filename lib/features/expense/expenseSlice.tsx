@@ -17,7 +17,7 @@ const initialState: ExpensesState = {
   error: null,
 }
 
-const EXPENSE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/expenses'
+const EXPENSE_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/expense'
 
 // Async thunks
 export const fetchExpenses = createAsyncThunk(

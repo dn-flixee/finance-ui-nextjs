@@ -8,6 +8,8 @@ import accountReducer from './features/account/accountSlice'
 import transferReducer from './features/transfer/transferSlice'
 import splitwiseExpenseReducer from './features/splitwise/splitwiseSlice'
 import dashboardReducer from './features/dashboard/dashboardSlice'
+import splitwiseReducer from './features/splitwise/splitwiseSlice'
+
 export const makeStore = () => {
   return configureStore({
     reducer: {
@@ -18,7 +20,8 @@ export const makeStore = () => {
       accounts: accountReducer,
       transfers: transferReducer,
       splitwiseExpenses: splitwiseExpenseReducer,
-      dashboard:dashboardReducer
+      dashboard:dashboardReducer,
+      splitwise: splitwiseReducer
     }
   })
 }

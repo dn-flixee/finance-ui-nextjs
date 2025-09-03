@@ -1,280 +1,265 @@
+// src/app/(dashboard)/expenses/ExpenseSheet.tsx
 "use client"
-import React, { useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
-import { z } from 'zod'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { useForm } from 'react-hook-form'
-import { format } from "date-fns"
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover'
-import { cn } from '@/lib/utils'
-import { CalendarIcon } from 'lucide-react'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from '@/components/ui/use-toast'
 import { useAppDispatch } from '@/lib/hooks'
-import { deleteExpense, saveExpense, updateExpense } from '@/lib/features/expense/expenseSlice'
-import { ExpenseSource, FinanceAccount, Expense } from '@/lib/types'
-
+import { createExpense, updateExpense, deleteExpense } from '@/lib/features/expense/expenseSlice'
+import { Expense, ExpenseSource, FinanceAccount } from '@/lib/types'
+import { Trash2, Loader2 } from 'lucide-react'
 
 interface ExpenseSheetProps {
-  expenseSourceData: ExpenseSource[];
-  accountData: FinanceAccount[];
-  isOpen: boolean;
-  onClose: () => void;
-  expenseToEdit: Expense | null;
+  expenseSourceData: ExpenseSource[]
+  accountData: FinanceAccount[]
+  isOpen: boolean
+  onClose: () => void
+  expenseToEdit?: Expense | null
 }
 
-function ExpenseSheet({ expenseSourceData, accountData, isOpen, onClose, expenseToEdit }: ExpenseSheetProps) {
+export default function ExpenseSheet({
+  expenseSourceData,
+  accountData,
+  isOpen,
+  onClose,
+  expenseToEdit
+}: ExpenseSheetProps) {
+  const dispatch = useAppDispatch()
+  const { toast } = useToast()
 
-  const dispatch = useAppDispatch();
-  
+  const [formData, setFormData] = useState({
+    name: '',
+    amount: '',
+    date: '',
+    accountId: '',
+    expenseSourceId: ''
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
-
-    if (expenseToEdit) {
-        form.setValue("amount", expenseToEdit.amount);
-        form.setValue("name", expenseToEdit.name);
-        form.setValue("accountId", expenseToEdit.accountId);
-        form.setValue("expenseSourceId", expenseToEdit.expenseSourceId);
-        form.setValue("date", expenseToEdit.date);
-    } else {
-        form.resetField("amount");
-        form.setValue("name", "");
-        form.setValue("accountId", "");
-        form.setValue("expenseSourceId","");
-        form.setValue("date", new Date());
+    if (isOpen) {
+      if (expenseToEdit) {
+        setFormData({
+          name: expenseToEdit.name,
+          amount: expenseToEdit.amount.toString(),
+          date: new Date(expenseToEdit.date).toISOString().split('T')[0],
+          accountId: expenseToEdit.accountId,
+          expenseSourceId: expenseToEdit.expenseSourceId || ''
+        })
+      } else {
+        setFormData({
+          name: '',
+          amount: '',
+          date: new Date().toISOString().split('T')[0],
+          accountId: '',
+          expenseSourceId: ''
+        })
+      }
     }
-  }, [expenseToEdit])
+  }, [isOpen, expenseToEdit])
 
-  const addExpense = z.object({
-    amount: z.coerce.number().min(0),
-    name: z.string().min(1).max(255),
-    accountId: z.string().min(1).max(255),
-    expenseSourceId: z.string().min(1).max(255),
-    date: z.date({
-        required_error: "Please select a date and time",
-        invalid_type_error: "That's not a date!",
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const expenseData = {
+      name: formData.name,
+      amount: parseFloat(formData.amount),
+      date: new Date(formData.date).toISOString(),
+      accountId: formData.accountId,
+      expenseSourceId: formData.expenseSourceId === 'none' ? undefined : formData.expenseSourceId
+    }
+  
+
+      if (expenseToEdit) {
+        await dispatch(updateExpense({
+          expenseId: expenseToEdit.expenseId,
+          ...expenseData
+        })).unwrap()
+      } else {
+        await dispatch(createExpense(expenseData)).unwrap()
+      }
+
+      onClose()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${expenseToEdit ? 'update' : 'create'} expense`,
       })
-  })
-
-  const form = useForm<z.infer<typeof addExpense>>({
-    resolver : zodResolver(addExpense),
-  })
-
-  function handleSubmit(values: z.infer<typeof addExpense>,) {
-    console.log("save button press")
-
-    if(expenseToEdit){
-      dispatch(updateExpense({
-        expenseId: expenseToEdit.expenseId,
-        name: values.name,
-        amount: values.amount,
-        date: values.date,
-        accountId: values.accountId,
-        expenseSourceId: values.expenseSourceId,
-      }))
-    }else{
-        dispatch(saveExpense(values));
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const removeExpense = () =>{
-    if(expenseToEdit){
-      dispatch(deleteExpense(expenseToEdit.expenseId))
+  const handleDelete = async () => {
+    if (!expenseToEdit) return
+
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteExpense(expenseToEdit.expenseId)).unwrap()
+      onClose()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete expense",
+      })
+    } finally {
+      setIsDeleting(false)
     }
-}
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="bg-gray-900 text-white">
+      <SheetContent className="bg-gray-900 border-gray-700 text-white">
         <SheetHeader>
-          <SheetTitle className="text-white">{expenseToEdit ? 'Edit Expense' : 'Add Expense'}</SheetTitle>
+          <SheetTitle className="text-white">
+            {expenseToEdit ? 'Edit Expense' : 'Add New Expense'}
+          </SheetTitle>
+          <SheetDescription className="text-gray-400">
+            {expenseToEdit ? 'Update your expense details' : 'Add a new expense entry'}
+          </SheetDescription>
         </SheetHeader>
-        <Form {...form}>
-                        <form id="expense-form" onSubmit={form.handleSubmit(handleSubmit)}>
-                          <FormField 
-                              control={form.control}  
-                              name="name" 
-                              render={({field})=>{
-                                return (<FormItem>
-                                  <FormLabel>Name</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder='name' type='text' {...field}/>                   
-                                  </FormControl>
-                                  <FormMessage/>
-                                </FormItem>);
-                          }}/>
 
-                            <FormField 
-                              control={form.control}  
-                              name="amount" 
-                              render={({ field})=>{
-                                return (<FormItem>
-                                  <FormLabel>Amount</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder='amount' type='number' {...field}/>                   
-                                  </FormControl>
-                                  <FormMessage/>
-                                </FormItem>);
-                          }}/>
-                          
-                          <FormField
-                                        control={form.control}
-                                        name="accountId"
-                                        render={({ field }) => {
-                                          // Find the selected account name
-                                          const selectedAccount = accountData?.find(acc => acc.accountId === field.value);
-                                          const displayValue = selectedAccount?.name || "";
-                                          console.log("display valiue",field.value)
-                                          return (
-                                            <FormItem>
-                                              <FormLabel>Account</FormLabel>
-                                              <Select 
-                                                onValueChange={field.onChange}
-                                                value={field.value || ""}
-                                              >
-                                                <FormControl>
-                                                  <SelectTrigger>
-                                                    <SelectValue placeholder="Select Account">
-                                                      {displayValue && <span>{displayValue}</span>}
-                                                    </SelectValue>
-                                                  </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                  {accountData &&
-                                                    accountData.map((option) => (
-                                                      <SelectItem key={option.accountId} value={option.accountId}>
-                                                        <div className="flex flex-col">
-                                                          <span className="font-medium">{option.name}</span>
-                                                        </div>
-                                                      </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                              </Select>
-                                              <FormMessage />
-                                            </FormItem>
-                                          );
-                                        }}
-                                      />
-                          
-                                      <FormField
-                                        control={form.control}
-                                        name="expenseSourceId"
-                                        render={({ field }) => {
-                                          // Find the selected expense source name
-                                          const selectedexpenseSource = expenseSourceData?.find(
-                                            source => source.expenseSourceId === field.value
-                                          );
-                                          const displayValue = selectedexpenseSource?.name || "";
-                                          console.log("display valiue",field.value)
-                                          return (
-                                            <FormItem>
-                                              <FormLabel>Expense Source</FormLabel>
-                                              <Select 
-                                                onValueChange={field.onChange}
-                                                value={field.value || ""}
-                                              >
-                                                <FormControl>
-                                                  <SelectTrigger>
-                                                    <SelectValue placeholder="Select Account">
-                                                      {displayValue && <span>{displayValue}</span>}
-                                                    </SelectValue>
-                                                  </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                  {expenseSourceData &&
-                                                    expenseSourceData.map((option) => (
-                                                      <SelectItem 
-                                                        key={option.expenseSourceId} 
-                                                        value={option.expenseSourceId} // Store ID, not name
-                                                      >
-                                                         <div className="flex flex-col">
-                                                          <span className="font-medium">{option.name}</span>
-                                                        </div>
-                                                      </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                              </Select>
-                                              <FormMessage />
-                                            </FormItem>
-                                          );
-                                        }}
-                                      />
-                          
-                          
-                          
-                          <FormField
-                            control={form.control}
-                            name="date"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-col">
-                                <FormLabel className=' mt-2'>Date</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                          "w-[240px] pl-3 text-left font-normal",
-                                          !field.value && "text-muted-foreground"
-                                        )}
-                                      >
-                                        {field.value ? (
-                                          format(field.value, "PPP")
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value}
-                                      onSelect={field.onChange} 
-                                      disabled={(date) =>
-                                        date > new Date() || date < new Date("1900-01-01")
-                                      }
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                         <SheetFooter>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+          <div>
+            <Label htmlFor="name" className="text-white">Expense Name</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              placeholder="e.g., Groceries, Gas"
+              required
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
 
-                        {/* Added conditional statement for delete to appear only on edit expense sheet */}
+          <div>
+            <Label htmlFor="amount" className="text-white">Amount (₹)</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              value={formData.amount}
+              onChange={(e) => setFormData({...formData, amount: e.target.value})}
+              placeholder="0.00"
+              required
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
 
-                         {expenseToEdit?<AlertDialog>
-                          <AlertDialogTrigger>
-                          <Button className='mt-2' variant="destructive" type="button">Delete</Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete your account
-                                and remove your data from our servers.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={removeExpense}>Continue</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>:null}
-                          <Button type='submit' className='mt-2'
-                            form='expense-form'
-                            >Submit</Button>
-                            </SheetFooter>
-                        </form>
-                    </Form>
+          <div>
+            <Label htmlFor="date" className="text-white">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              required
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="account" className="text-white">Account</Label>
+            <Select
+              value={formData.accountId}
+              onValueChange={(value) => setFormData({...formData, accountId: value})}
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue placeholder="Select account" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                {accountData.map((account) => (
+                  <SelectItem key={account.accountId} value={account.accountId}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="source" className="text-white">Category (Optional)</Label>
+            <Select
+              value={formData.expenseSourceId}
+              onValueChange={(value) => setFormData({...formData, expenseSourceId: value})}
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="none">
+                  <span className="text-gray-400 italic">No category</span>
+                </SelectItem>
+                {expenseSourceData.map((source) => (
+                  <SelectItem key={source.expenseSourceId} value={source.expenseSourceId}>
+                    {source.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            {expenseToEdit && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting || isLoading}
+                className="flex-1"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading || isDeleting}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || isDeleting}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              {expenseToEdit ? 'Update' : 'Create'}
+            </Button>
+          </div>
+        </form>
       </SheetContent>
     </Sheet>
   )
 }
-export default ExpenseSheet;

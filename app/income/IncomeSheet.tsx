@@ -47,7 +47,7 @@ export default function IncomeSheet({
     amount: '',
     date: '',
     accountId: '',
-    incomeSourceId: ''
+    incomeSourceId: 'none' // ✅ Changed from empty string to 'none'
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -61,7 +61,7 @@ export default function IncomeSheet({
           amount: incomeToEdit.amount.toString(),
           date: new Date(incomeToEdit.date).toISOString().split('T')[0],
           accountId: incomeToEdit.accountId,
-          incomeSourceId: incomeToEdit.incomeSourceId || ''
+          incomeSourceId: incomeToEdit.incomeSourceId || 'none' // ✅ Handle null/undefined
         })
       } else {
         setFormData({
@@ -69,7 +69,7 @@ export default function IncomeSheet({
           amount: '',
           date: new Date().toISOString().split('T')[0],
           accountId: '',
-          incomeSourceId: ''
+          incomeSourceId: 'none' // ✅ Default to 'none' instead of empty string
         })
       }
     }
@@ -83,9 +83,10 @@ export default function IncomeSheet({
       const incomeData = {
         name: formData.name,
         amount: parseFloat(formData.amount),
-        date: new Date(formData.date),
+        date: new Date(formData.date).toISOString(),
         accountId: formData.accountId,
-        incomeSourceId: formData.incomeSourceId || undefined
+        // ✅ Convert 'none' back to undefined for API
+        incomeSourceId: formData.incomeSourceId === 'none' ? undefined : formData.incomeSourceId
       }
 
       if (incomeToEdit) {
@@ -207,7 +208,10 @@ export default function IncomeSheet({
                 <SelectValue placeholder="Select income source" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="">No source</SelectItem>
+                {/* ✅ Use 'none' instead of empty string */}
+                <SelectItem value="none">
+                  <span className="text-gray-400 italic">No source</span>
+                </SelectItem>
                 {incomeSourceData.map((source) => (
                   <SelectItem key={source.incomeSourceId} value={source.incomeSourceId}>
                     {source.name}

@@ -61,9 +61,11 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Splitwise integration
-  splitwiseUserId    String?
-  splitwiseToken     String?
+  splitwiseToken     String?   @db.Text
+  splitwiseTokenType String?   @default("Bearer")
   splitwiseTokenExp  DateTime?
+  splitwiseUserId    String?
+  splitwiseUserEmail String?
 
   // Email integration
   linkedEmails       LinkedEmail[]
@@ -201,6 +203,8 @@ model Expense {
   // Splitwise specific fields
   splitwiseExpenseId String?
   isSplitwiseLinked  Boolean @default(false)
+  splitwiseUserShare  Float?   // My share in the Splitwise expense
+  splitwiseTotalAmount Float?  // Total amount of the Splitwise expense
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

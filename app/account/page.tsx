@@ -1,57 +1,67 @@
+// src/app/(dashboard)/accounts/page.tsx
 "use client"
 import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import TransferSheet from './TransferSheet'
+import { Badge } from "@/components/ui/badge"
+import { useToast } from '@/components/ui/use-toast'
+import { 
+  Plus, 
+  CreditCard, 
+  Wallet, 
+  PiggyBank, 
+  TrendingUp,
+  Loader2,
+  Edit,
+  Trash2
+} from 'lucide-react'
 import AccountSheet from './AccountSheet'
 import NavBar from '@/components/NavBar'
-import { selectTransfers, fetchTransfers,  } from '@/lib/features/transfer/transferSlice'
+
+import { 
+  selectAccounts, 
+  selectAccountsStatus,
+  selectAccountsError,
+  fetchAccounts,
+  deleteAccount
+} from '@/lib/features/account/accountSlice'
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
-import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
-import { CreditCard, PlusCircle } from 'lucide-react'
-import { FinanceAccount, Transfer } from '@/lib/types'
+import { FinanceAccount, AccountType } from '@/lib/types'
 
-  
-export default function Component() {
-
-  const transfers = useAppSelector(selectTransfers)
-  const accounts = useAppSelector(selectAccounts)
+export default function AccountsPage() {
   const dispatch = useAppDispatch()
+  const { toast } = useToast()
 
-    const date = new Date();
-    const [selectedMonth, setSelectedMonth] = useState<Number>((new Date()).getMonth())
-    const [selectedYear, setSelectedYear] = useState<Number>((new Date()).getFullYear())
-    const [isTransferSheetOpen, setIsTransferSheetOpen] = useState(false)
-    const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null)
-    const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
-    const [selectedAccount, setSelectedAccount] = useState<FinanceAccount | null>(null)
+  // Redux selectors
+  const accounts = useAppSelector(selectAccounts)
+  const accountsStatus = useAppSelector(selectAccountsStatus)
+  const accountsError = useAppSelector(selectAccountsError)
 
+  // Local state
+  const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState<FinanceAccount | null>(null)
+
+  // Fetch accounts on component mount
   useEffect(() => {
-    if(transfers.status === 'idle'){
-        dispatch(fetchTransfers())
+    if (accountsStatus === 'idle') {
+      dispatch(fetchAccounts())
     }
-    },[dispatch,transfers.status]);
+  }, [dispatch, accountsStatus])
 
-    useEffect(()=>{
-      if(accounts.status === 'idle'){
-        dispatch(fetchAccounts())
-      }
-    },[dispatch,accounts.status])
+  // Error handling
+  useEffect(() => {
+    if (accountsError) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load accounts. Please try again.",
+      })
+    }
+  }, [accountsError, toast])
 
-
-  const openTransferSheet = (transfer: Transfer | null = null) => {
-    setSelectedTransfer(transfer)
-    setIsTransferSheetOpen(true)
-  }
-
-  const closeTransferSheet = () => {
-    setIsTransferSheetOpen(false)
-    setSelectedTransfer(null)
-  }
-
-  const openAccountSheet = (source: FinanceAccount | null = null) => {
-    setSelectedAccount(source)
+  // Sheet handlers
+  const openAccountSheet = (account: FinanceAccount | null = null) => {
+    setSelectedAccount(account)
     setIsAccountSheetOpen(true)
   }
 
@@ -60,151 +70,240 @@ export default function Component() {
     setSelectedAccount(null)
   }
 
-  const filteredTransfer = transfers.transfers.filter(transfer => {
-    const transferDate = new Date(transfer.date)
-    return transferDate.getMonth() === parseInt(selectedMonth) && transferDate.getFullYear() === parseInt(selectedYear)
-  })
-
-  const years: number[] = Array.from(
-    new Set(
-        transfers.transfers.map(transfer => {
-            const date = new Date(transfer.date); // Convert to Date object
-            return date.getFullYear(); // Extract the year
+  // Delete account handler
+  const handleDeleteAccount = async (accountId: string, accountName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${accountName}"? This action cannot be undone.`)) {
+      try {
+        await dispatch(deleteAccount(accountId)).unwrap()
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete account. It may have associated transactions.",
         })
-    )
-);
-const getAccountName = (accountId: string): string => {
-  return accounts.accounts.find(acc => acc.accountId === accountId)?.name || '';
-};
+      }
+    }
+  }
 
-const months = [
-  { value: 0, label: 'January' },
-  { value: 1, label: 'February' },
-  { value: 2, label: 'March' },
-  { value: 3, label: 'April' },
-  { value: 4, label: 'May' },
-  { value: 5, label: 'June' },
-  { value: 6, label: 'July' },
-  { value: 7, label: 'August' },
-  { value: 8, label: 'September' },
-  { value: 9, label: 'October' },
-  { value: 10, label: 'November' },
-  { value: 11, label: 'December' },
-]
+  // Get account icon based on type
+  const getAccountIcon = (accountType: AccountType) => {
+    switch (accountType) {
+      case AccountType.CHECKING:
+        return <CreditCard className="h-6 w-6" />
+      case AccountType.SAVINGS:
+        return <PiggyBank className="h-6 w-6" />
+      case AccountType.CREDIT_CARD:
+        return <CreditCard className="h-6 w-6" />
+      case AccountType.INVESTMENT:
+        return <TrendingUp className="h-6 w-6" />
+      default:
+        return <Wallet className="h-6 w-6" />
+    }
+  }
+
+  // Get account type color
+  const getAccountTypeColor = (accountType: AccountType) => {
+    switch (accountType) {
+      case AccountType.CHECKING:
+        return 'bg-blue-600'
+      case AccountType.SAVINGS:
+        return 'bg-green-600'
+      case AccountType.CREDIT_CARD:
+        return 'bg-red-600'
+      case AccountType.INVESTMENT:
+        return 'bg-purple-600'
+      case AccountType.LOAN:
+        return 'bg-orange-600'
+      default:
+        return 'bg-gray-600'
+    }
+  }
+
+  // Calculate totals
+  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
+  const totalAssets = accounts
+    .filter(acc => [AccountType.CHECKING, AccountType.SAVINGS, AccountType.INVESTMENT, AccountType.CASH].includes(acc.accountType))
+    .reduce((sum, account) => sum + Math.max(account.balance, 0), 0)
+  const totalLiabilities = accounts
+    .filter(acc => [AccountType.CREDIT_CARD, AccountType.LOAN].includes(acc.accountType))
+    .reduce((sum, account) => sum + Math.abs(Math.min(account.balance, 0)), 0)
+
+  if (accountsStatus === 'loading' && accounts.length === 0) {
+    return (
+      <>
+        <NavBar />
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading accounts...</span>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
-    <div className="min-h-screen bg-gray-900 text-white">
-      <NavBar/>
-      <main className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <CreditCard className="h-4 w-4 mr-2 text-green-500" />
-              TRANSFER
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex space-x-2 mb-4">
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[80px] bg-gray-700">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month)=> (
-                    <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[80px] bg-gray-700">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openTransferSheet()}>
-                New
-              </Button>
+      <NavBar />
+      <div className="min-h-screen bg-gray-900 text-white">
+        <div className="p-6 max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">Accounts</h1>
+              <p className="text-gray-400">Manage your financial accounts</p>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold">{months.find(m => m.value === selectedMonth)?.label} {selectedYear}</h3>
-              {filteredTransfer.map((transfer) => (
-                <div key={transfer.transferId} className="flex justify-between items-center p-2 hover:bg-gray-700 rounded cursor-pointer" onClick={() => openTransferSheet(transfer)}>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xl">{transfer.name === 'ATM' ? '🏧' : '💸'}</span>
-                    <span>{transfer.name}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span>{getAccountName(transfer.fromAccountId)}</span>
-                    <span> -> ₹ {transfer.amount} -></span>
-                    <span>{getAccountName(transfer.toAccountId)}</span>
-                  </div>
+            <Button onClick={() => openAccountSheet()} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Account
+            </Button>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Net Worth</CardTitle>
+                <Wallet className="h-4 w-4 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">
+                  ₹{totalBalance.toLocaleString()}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <CreditCard className="h-4 w-4 mr-2 text-green-500" />
-              ACCOUNT/CARDS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-          <div className="flex space-x-2 mb-4">
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[80px] bg-gray-700">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month)=> (
-                    <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[80px] bg-gray-700">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="default" size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={()=>openAccountSheet()}>
-                New
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {accounts.accounts.map((account) => (
-                <div key={account.accountId} className="bg-gray-700 p-4 rounded-lg cursor-pointer" onClick={() => openAccountSheet(account)}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="font-semibold">{account.name}</span>
-                  </div>
-                  <div className="text-xl font-bold">₹ {account.startingBalance}</div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Assets - Liabilities
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Total Assets</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-400">
+                  ₹{totalAssets.toLocaleString()}
                 </div>
-              ))}
-              <Button variant="outline" className="h-full flex items-center justify-center" onClick={()=>openAccountSheet()}>
-                <PlusCircle className="h-6 w-6" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-      <AccountSheet isOpen={isAccountSheetOpen} onClose={closeAccountSheet} accountToEdit={selectedAccount} />
-      <TransferSheet isOpen={isTransferSheetOpen} onClose={closeTransferSheet}  transferToEdit={selectedTransfer} accountData={accounts.accounts} />
-    </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Cash + Investments
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Total Liabilities</CardTitle>
+                <CreditCard className="h-4 w-4 text-red-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-400">
+                  ₹{totalLiabilities.toLocaleString()}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Credit Cards + Loans
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Accounts List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {accounts.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <Wallet className="h-16 w-16 mx-auto text-gray-600 mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">No accounts yet</h3>
+                <p className="text-gray-400 mb-6">Add your first account to start tracking your finances</p>
+                <Button onClick={() => openAccountSheet()} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Account
+                </Button>
+              </div>
+            ) : (
+              accounts.map((account) => (
+                <Card key={account.accountId} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-12 h-12 ${getAccountTypeColor(account.accountType)} rounded-full flex items-center justify-center text-white`}>
+                          {getAccountIcon(account.accountType)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white">{account.name}</h3>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {account.accountType.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openAccountSheet(account)}
+                          className="h-8 w-8 p-0 text-gray-400 hover:text-white"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteAccount(account.accountId, account.name)}
+                          className="h-8 w-8 p-0 text-gray-400 hover:text-red-400"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm text-gray-400">Current Balance</p>
+                        <p className={`text-2xl font-bold ${
+                          account.balance >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          ₹{account.balance.toLocaleString()}
+                        </p>
+                      </div>
+
+                      {account.creditLimit && account.accountType === AccountType.CREDIT_CARD && (
+                        <div>
+                          <p className="text-sm text-gray-400">Credit Limit</p>
+                          <p className="text-lg text-white">₹{account.creditLimit.toLocaleString()}</p>
+                          <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
+                            <div
+                              className="bg-red-500 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min((Math.abs(account.balance) / account.creditLimit) * 100, 100)}%`
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {Math.round((Math.abs(account.balance) / account.creditLimit) * 100)}% utilized
+                          </p>
+                        </div>
+                      )}
+
+                      {account.bankName && (
+                        <div>
+                          <p className="text-sm text-gray-400">Bank</p>
+                          <p className="text-sm text-white">{account.bankName}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Account Sheet */}
+        <AccountSheet
+          isOpen={isAccountSheetOpen}
+          onClose={closeAccountSheet}
+          accountToEdit={selectedAccount}
+        />
+      </div>
     </>
   )
 }
-

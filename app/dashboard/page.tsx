@@ -1,219 +1,267 @@
-  "use client"
+// src/app/(dashboard)/dashboard/page.tsx
+"use client"
+import React, { useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
+import { 
+  fetchDashboardStats, 
+  selectDashboardStats, 
+  selectDashboardStatus 
+} from '@/lib/features/dashboard/dashboardSlice'
+import { fetchAccounts, selectAccounts } from '@/lib/features/account/accountSlice'
+import { fetchIncomes } from '@/lib/features/income/incomeSlice'
+import { fetchExpenses } from '@/lib/features/expense/expenseSlice'
+import NavBar from '@/components/NavBar'
+import { 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown, 
+  CreditCard, 
+  Activity,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight
+} from 'lucide-react'
 
-  import { useEffect, useState } from "react"
-  import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, FileTextIcon, UserCircleIcon } from "lucide-react"
-  import { Button } from "@/components/ui/button"
-  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-  import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-  import { PieChart, Pie, Cell } from 'recharts'
-  import ExpenseService from "@/components/ExpenseService"
-import NavBar from "@/components/NavBar"
+export default function DashboardPage() {
+  const dispatch = useAppDispatch()
+  
+  const dashboardStats = useAppSelector(selectDashboardStats)
+  const dashboardStatus = useAppSelector(selectDashboardStatus)
+  const accounts = useAppSelector(selectAccounts)
 
+  useEffect(() => {
+    dispatch(fetchDashboardStats())
+    dispatch(fetchAccounts())
+    dispatch(fetchIncomes({ recent: true, limit: 5 }))
+    dispatch(fetchExpenses({ recent: true, limit: 5 }))
+  }, [dispatch])
 
-  interface FinanceDataPoint {
-    name: string;
-    income: number;
-    spending: number;
-  }
+  const currentMonth = new Date().toLocaleDateString('en-US', { 
+    month: 'long', 
+    year: 'numeric' 
+  })
 
-  const financeData: Record<string, FinanceDataPoint[]> = {
-    weekly: [
-      { name: 'Mon', income: 500, spending: 300 },
-      { name: 'Tue', income: 600, spending: 400 },
-      { name: 'Wed', income: 550, spending: 350 },
-      { name: 'Thu', income: 700, spending: 450 },
-      { name: 'Fri', income: 800, spending: 500 },
-      { name: 'Sat', income: 750, spending: 600 },
-      { name: 'Sun', income: 900, spending: 700 },
-    ],
-    monthly: [
-      { name: 'May', income: 3000, spending: 2500 },
-      { name: 'Jun', income: 3800, spending: 3000 },
-      { name: 'Jul', income: 3500, spending: 4000 },
-      { name: 'Aug', income: 4500, spending: 3500 },
-      { name: 'Sep', income: 5500, spending: 3000 },
-      { name: 'Oct', income: 4800, spending: 4800 },
-      { name: 'Nov', income: 5200, spending: 2500 },
-      { name: 'Dec', income: 4700, spending: 4000 },
-    ],
-    yearly: [
-      { name: '2016', income: 30000, spending: 25000 },
-      { name: '2017', income: 38000, spending: 30000 },
-      { name: '2018', income: 35000, spending: 40000 },
-      { name: '2019', income: 45000, spending: 35000 },
-      { name: '2020', income: 55000, spending: 30000 },
-      { name: '2021', income: 48000, spending: 48000 },
-      { name: '2022', income: 52000, spending: 25000 },
-      { name: '2023', income: 47000, spending: 40000 },
-    ],
-  }
+  const netIncome = (dashboardStats?.monthlyIncome || 0) - (dashboardStats?.monthlyExpenses || 0)
 
-  interface ExpenseEntry {
-    name: string;
-    value: number;
-  }
-
-  interface ExpenseData {
-    [month: string]: ExpenseEntry[];
-  }
-
-  const expenseData1: ExpenseData = {
-    "NA": [
-      {
-        "name": "NA",
-        "value": 0
-      }
-    ]
-  }
-
-
-  const COLORS = [
-    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-    '#9966FF', '#FF9F40', '#FFCD56', '#4CAF50',
-    '#F44336', '#2196F3', '#FFEB3B', '#00BCD4'
-  ];
-
-  export default function FinanceDashboard() {
-    let [expenseData, setExpenseData] = useState(expenseData1)
-    const [financeTimeframe, setFinanceTimeframe] = useState("monthly") 
-    const [expenseMonth, setExpenseMonth] = useState("NA")
-
-    useEffect(() => {
-      ExpenseService.getExpenseFromLastYear()
-      .then((Response) => {
-        console.log(Response.data)
-        setExpenseData(Response.data)
-        // Update the expenseMonth state if the response data has different months
-        const newMonthNames = Object.keys(Response.data)
-        if (newMonthNames.length > 0) {
-          setExpenseMonth(newMonthNames[0])
-        }
-
-      }).catch(error => {
-        console.log(error)
-      })
-    }, [])
-
+  if (dashboardStatus === 'loading' && !dashboardStats) {
     return (
+      <>
+        <NavBar />
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <NavBar />
       <div className="min-h-screen bg-gray-900 text-white">
-        
-        <NavBar/>
-        <main className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-gray-800">
+        <div className="p-6 max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Financial Dashboard</h1>
+            <p className="text-gray-400">Overview of your financial status for {currentMonth}</p>
+          </div>
+
+          {/* Main Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Total Balance */}
+            <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Balance</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-400">
+                  Total Balance
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹ 54,432</div>
+                <div className="text-2xl font-bold text-white">
+                  ₹{dashboardStats?.totalBalance?.toLocaleString() || '0'}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Across {dashboardStats?.accountsCount || 0} accounts
+                </p>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800">
+
+            {/* Monthly Income */}
+            <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Income</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-400">
+                  Monthly Income
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹ 36,675</div>
-                <p className="text-xs text-gray-400">This Week's income</p>
-                <div className="text-green-500 text-sm mt-1 flex items-center">
-                  <ArrowUpIcon className="h-4 w-4 mr-1" />
-                  12.23%
+                <div className="text-2xl font-bold text-green-400">
+                  +₹{dashboardStats?.monthlyIncome?.toLocaleString() || '0'}
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  This month
+                </p>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800">
+
+            {/* Monthly Expenses */}
+            <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Expenses</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-400">
+                  Monthly Expenses
+                </CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹ 12,252</div>
-                <p className="text-xs text-gray-400">This Week's expense</p>
-                <div className="text-red-500 text-sm mt-1 flex items-center">
-                  <ArrowDownIcon className="h-4 w-4 mr-1" />
-                  11.56%
+                <div className="text-2xl font-bold text-red-400">
+                  -₹{dashboardStats?.monthlyExpenses?.toLocaleString() || '0'}
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  This month
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Net Income */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">
+                  Net Income
+                </CardTitle>
+                <Activity className="h-4 w-4 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {netIncome >= 0 ? '+' : ''}₹{netIncome.toLocaleString()}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Income - Expenses
+                </p>
               </CardContent>
             </Card>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="col-span-2 bg-gray-800">
+
+          {/* Accounts and Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* Accounts Overview */}
+            <Card className="lg:col-span-2 bg-gray-800 border-gray-700">
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Finance Statistic</CardTitle>
-                  <Select value={financeTimeframe} onValueChange={setFinanceTimeframe}>
-                    <SelectTrigger className="w-[180px] bg-gray-700">
-                      <SelectValue placeholder="Select a timeframe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white">Accounts Overview</CardTitle>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Account
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={financeData[financeTimeframe]}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="income" stroke="#8884d8" activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="spending" stroke="#82ca9d" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="space-y-4">
+                  {accounts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-600" />
+                      <p>No accounts found</p>
+                      <Button size="sm" className="mt-4">Add your first account</Button>
+                    </div>
+                  ) : (
+                    accounts.slice(0, 4).map((account) => (
+                      <div key={account.accountId} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                            <CreditCard className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{account.name}</p>
+                            <p className="text-sm text-gray-400">{account.accountType}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-white">₹{account.balance.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800">
+
+            {/* Quick Actions */}
+            <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>All Expense</CardTitle>
-                  <Select value={expenseMonth} onValueChange={setExpenseMonth}>
-                    <SelectTrigger className="w-[180px] bg-gray-700">
-                      <SelectValue placeholder="Select a month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {expenseData && Object.keys(expenseData).map((month) => (
-                                      <SelectItem key={month} value={month}>{month}</SelectItem>
-                                    ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardTitle className="text-white">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={expenseData[expenseMonth] || []}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {(expenseData[expenseMonth] || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2 mt-4">
-                  {(expenseData[expenseMonth] || []).map((item, index) => (
-                    <div key={item.name} className="flex items-center">
-                      <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: COLORS[index] }}></div>
-                      <span>{item.name}</span>
+              <CardContent className="space-y-3">
+                <Button className="w-full justify-start bg-green-600 hover:bg-green-700">
+                  <ArrowUpRight className="h-4 w-4 mr-2" />
+                  Add Income
+                </Button>
+                <Button className="w-full justify-start bg-red-600 hover:bg-red-700">
+                  <ArrowDownRight className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Button>
+                <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Transfer Money
+                </Button>
+                <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Manage Accounts
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Transactions */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white">Recent Activity</CardTitle>
+                <Button variant="outline" size="sm">View All</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardStats?.recentTransactions?.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-600" />
+                  <p>No recent transactions</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {dashboardStats?.recentTransactions?.slice(0, 5).map((transaction, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          transaction.type === 'income' ? 'bg-green-600' : 
+                          transaction.type === 'expense' ? 'bg-red-600' : 'bg-blue-600'
+                        }`}>
+                          {transaction.type === 'income' ? 
+                            <ArrowUpRight className="h-4 w-4 text-white" /> :
+                            transaction.type === 'expense' ? 
+                            <ArrowDownRight className="h-4 w-4 text-white" /> :
+                            <Activity className="h-4 w-4 text-white" />
+                          }
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{transaction.name}</p>
+                          <p className="text-sm text-gray-400">
+                            {new Date(transaction.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`font-bold ${
+                        transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount.toLocaleString()}
+                      </div>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">Manage</Button>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    )
-  }
+    </>
+  )
+}

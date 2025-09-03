@@ -17,7 +17,7 @@ const initialState: AccountsState = {
   error: null,
 }
 
-const ACCOUNTS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/accounts'
+const ACCOUNTS_API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL + '/api/v1/account'
 
 // Async thunks
 export const fetchAccounts = createAsyncThunk(
