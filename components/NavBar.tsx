@@ -61,6 +61,12 @@ const NavBar = () => {
               <Link href="/expense" className="text-gray-600 hover:text-gray-900">
                 Expenses
               </Link>
+              <Link href="/splitwise" className="text-gray-600 hover:text-gray-900">
+                Splitwise & IOUs
+              </Link>
+              <Link href="/transfers" className="text-gray-600 hover:text-gray-900">
+                Transfers
+              </Link>
               <Link href="/account" className="text-gray-600 hover:text-gray-900">
                 Accounts
               </Link>

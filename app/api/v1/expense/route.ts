@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { transformExpense } from '@/lib/transformers'
 import { z } from 'zod'
 import { TransactionSource } from '@/lib/types'
+import { CategorizationService } from '@/services/categorization.service'
+import { ReconciliationService } from '@/services/reconciliation.service'
 
 const expenseSchema = z.object({
   name: z.string().min(1),
@@ -84,19 +86,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = expenseSchema.parse(body)
     
+    // Evaluate smart rules (auto-categorization, ignore rules, and Splitwise candidate matching)
+    const categorizationService = new CategorizationService()
+    const evaluation = await categorizationService.evaluateTransaction(
+      validatedData.name,
+      validatedData.amount,
+      new Date(validatedData.date),
+      session.user.id
+    )
+
+    const isIgnored = evaluation.isIgnored || false
+    const expenseSourceId = validatedData.expenseSourceId || evaluation.expenseSourceId || null
+
     const expense = await prisma.expense.create({
       data: {
         name: validatedData.name,
         amount: validatedData.amount,
         date: new Date(validatedData.date),
         accountId: validatedData.accountId,
-        expenseSourceId: validatedData.expenseSourceId || null,
+        expenseSourceId,
         userId: session.user.id,
         iconUrl: validatedData.iconUrl || null,
         sourceType: validatedData.sourceType || TransactionSource.MANUAL,
         sourceId: validatedData.sourceId || null,
         splitwiseExpenseId: validatedData.splitwiseExpenseId || null,
-        isSplitwiseLinked: validatedData.isSplitwiseLinked || false
+        isSplitwiseLinked: validatedData.isSplitwiseLinked || false,
+        isIgnored
       },
       include: {
         account: true,
@@ -104,7 +119,27 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    return NextResponse.json(transformExpense(expense), { status: 201 })
+    // Auto-reconcile if matching Splitwise expense found
+    let reconciledExpense = expense
+    if (evaluation.splitwiseCandidate) {
+      try {
+        const reconService = new ReconciliationService()
+        const reconResult = await reconService.reconcileExpense(
+          expense.expenseId,
+          evaluation.splitwiseCandidate.splitwiseId,
+          session.user.id
+        )
+        reconciledExpense = reconResult.expense as any
+      } catch (err) {
+        console.warn('Auto-reconciliation on expense creation failed:', err)
+      }
+    }
+    
+    const transformed = transformExpense(reconciledExpense)
+    return NextResponse.json({
+      ...transformed,
+      splitwiseCandidate: evaluation.splitwiseCandidate || null
+    }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 

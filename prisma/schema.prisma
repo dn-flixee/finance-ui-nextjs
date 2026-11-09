@@ -88,6 +88,10 @@ model User {
   // AI Chat relations
   chatSessions      ChatSession[]
 
+  // IOU & Rules relations
+  pendingIOUs         PendingIOU[]
+  categorizationRules CategorizationRule[]
+
   @@map("users")
 }
 
@@ -176,6 +180,11 @@ model Income {
   sourceType     TransactionSource @default(MANUAL)
   sourceId       String?           // Email transaction ID or other source
   
+  // Phantom expense settlement tracking
+  isSettlement   Boolean  @default(false)
+  isIgnored      Boolean  @default(false)
+  iouSettlements IOUSettlement[]
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -205,6 +214,13 @@ model Expense {
   isSplitwiseLinked  Boolean @default(false)
   splitwiseUserShare  Float?   // My share in the Splitwise expense
   splitwiseTotalAmount Float?  // Total amount of the Splitwise expense
+
+  // Reconciliation & Split fields
+  userShare          Float?    // Actual user share hitting budget (e.g. ₹500)
+  iouAmount          Float?    // Receivable amount fronted for others (e.g. ₹1500)
+  isReconciled       Boolean   @default(false)
+  isIgnored          Boolean   @default(false) // Muted if internal transfer or ignored
+  pendingIOUs        PendingIOU[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -243,7 +259,10 @@ model Transfer {
 enum TransactionSource {
   MANUAL
   EMAIL_PARSED
+  SMS_PARSED
+  STATEMENT_PARSED
   SPLITWISE
+  SPLITWISE_SETTLEMENT
   BANK_SYNC
 }
 
@@ -407,4 +426,82 @@ model FinancialKnowledge {
   updatedAt     DateTime    @updatedAt
 
   @@map("financial_knowledge")
+}
+
+// ==========================================
+// Phantom Expense & Reconciliation Models
+// ==========================================
+
+model PendingIOU {
+  id                 String        @id @default(cuid())
+  userId             String
+  expenseId          String?
+  splitwiseExpenseId String?
+  friendName         String
+  friendSplitwiseId  String?
+  amount             Float         // Original amount owed to user
+  settledAmount      Float         @default(0) // Amount repaid so far
+  status             IOUStatus     @default(PENDING)
+  notes              String?
+  dueDate            DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  expense            Expense?      @relation(fields: [expenseId], references: [expenseId], onDelete: SetNull)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settlements        IOUSettlement[]
+
+  @@map("pending_ious")
+}
+
+model IOUSettlement {
+  id           String      @id @default(cuid())
+  iouId        String
+  incomeId     String?     // Bank credit that repaid this
+  amount       Float
+  settledAt    DateTime    @default(now())
+  notes        String?
+
+  iou          PendingIOU  @relation(fields: [iouId], references: [id], onDelete: Cascade)
+  income       Income?     @relation(fields: [incomeId], references: [incomeId], onDelete: SetNull)
+
+  @@map("iou_settlements")
+}
+
+enum IOUStatus {
+  PENDING
+  PARTIALLY_SETTLED
+  SETTLED
+  WRITTEN_OFF
+}
+
+model CategorizationRule {
+  id             String        @id @default(cuid())
+  userId         String
+  matchPattern   String        // e.g. "ZOMATO", "SWIGGY", "ZERODHA"
+  matchType      RuleMatchType @default(CONTAINS)
+  action         RuleAction    @default(CATEGORIZE)
+  targetCategory String?
+  targetSourceId String?       // ExpenseSource or IncomeSource ID
+  toAccountId    String?       // In case action is TRANSFER
+  priority       Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("categorization_rules")
+}
+
+enum RuleMatchType {
+  EXACT
+  CONTAINS
+  STARTS_WITH
+  REGEX
+}
+
+enum RuleAction {
+  CATEGORIZE
+  IGNORE          // Mute from expenses / income calculation
+  TRANSFER        // Reclassify as account-to-account transfer
 }

@@ -31,18 +31,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Token exchange
-    const formData = new URLSearchParams()
-    formData.append('client_id', process.env.SPLITWISE_CLIENT_ID!)
-    formData.append('client_secret', process.env.SPLITWISE_CLIENT_SECRET!)
-    formData.append('grant_type', 'authorization_code')
-    formData.append('code', code)
-    formData.append('redirect_uri', `${new URL(request.url).origin}/api/v1/splitwise/callback`)
+    const clientId = process.env.SPLITWISE_CLIENT_ID || process.env.NEXT_PUBLIC_SPLITWISE_CLIENT_ID
+    const clientSecret = process.env.SPLITWISE_CLIENT_SECRET
 
     console.log('Token exchange attempt:', {
       url: 'https://secure.splitwise.com/oauth/token',
-      clientId: process.env.SPLITWISE_CLIENT_ID ? 'present' : 'missing',
+      clientId: clientId ? 'present' : 'missing',
+      clientSecret: clientSecret ? 'present' : 'missing',
       redirectUri: `${new URL(request.url).origin}/api/v1/splitwise/callback`
     })
+
+    if (!clientId || !clientSecret) {
+      console.error('OAuth Error: Splitwise client credentials are not defined in .env')
+      return NextResponse.redirect(
+        new URL('/splitwise?error=missing_credentials&details=SPLITWISE_CLIENT_ID_or_SECRET_not_configured', request.url)
+      )
+    }
+
+    const formData = new URLSearchParams()
+    formData.append('client_id', clientId)
+    formData.append('client_secret', clientSecret)
+    formData.append('grant_type', 'authorization_code')
+    formData.append('code', code)
+    formData.append('redirect_uri', `${new URL(request.url).origin}/api/v1/splitwise/callback`)
 
     const tokenResponse = await axios.post(
       'https://secure.splitwise.com/oauth/token',

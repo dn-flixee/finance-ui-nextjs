@@ -14,11 +14,11 @@ export class SplitwiseService {
           'Accept': 'application/json'
         },
         body: new URLSearchParams({
-          client_id: process.env.NEXT_PUBLIC_SPLITWISE_CLIENT_ID!,
+          client_id: (process.env.SPLITWISE_CLIENT_ID || process.env.NEXT_PUBLIC_SPLITWISE_CLIENT_ID)!,
           client_secret: process.env.SPLITWISE_CLIENT_SECRET!,
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: `${process.env.NEXTAUTH_URL}/api/splitwise/callback`
+          redirect_uri: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/v1/splitwise/callback`
         })
       })
 
@@ -37,12 +37,28 @@ export class SplitwiseService {
       const tokens = JSON.parse(responseText)
       console.log('OAuth 2.0 parsed tokens:', tokens)
 
-      // Store tokens
+      // Fetch user profile from Splitwise to store splitwiseUserId
+      let splitwiseUser: any = null
+      try {
+        const userRes = await fetch(`${this.baseURL}/get_current_user`, {
+          headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+        })
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          splitwiseUser = userData.user
+        }
+      } catch (err) {
+        console.warn('Could not fetch current user details during OAuth:', err)
+      }
+
+      // Store tokens and user info
       await prisma.user.update({
         where: { id: userId },
         data: {
           splitwiseToken: tokens.access_token,
-          splitwiseTokenExp: new Date(Date.now() + (tokens.expires_in || 3600) * 1000)
+          splitwiseTokenExp: new Date(Date.now() + (tokens.expires_in || 3600) * 1000),
+          splitwiseUserId: splitwiseUser?.id ? splitwiseUser.id.toString() : undefined,
+          splitwiseUserEmail: splitwiseUser?.email || undefined
         }
       })
 
@@ -93,7 +109,9 @@ async syncExpenses(userId: string) {
       category: expense.category?.name || 'Other',
       groupId: expense.group_id?.toString() || null,
       groupName: expense.group?.name || 'Personal',
-      paidBy: paidByUser?.first_name || 'Unknown', // ✅ Always provide a value
+      paidBy: paidByUser?.user?.first_name 
+        ? `${paidByUser.user.first_name} ${paidByUser.user.last_name || ''}`.trim() 
+        : (paidByUser?.first_name || 'Unknown'),
       participants: expense.users || [],
       userId: userId,
     }
@@ -133,8 +151,95 @@ async syncExpenses(userId: string) {
 }
 
 
-  private calculateUserShare(expense: any, userId: string): number {
-    const userExpense = expense.users.find((u: any) => u.user_id.toString() === userId)
-    return userExpense ? parseFloat(userExpense.owed_share) : 0
+  private calculateUserShare(expense: any, userId?: string | null): number {
+    if (!userId) return 0
+    const userExpense = expense.users?.find((u: any) => 
+      (u.user_id || u.user?.id)?.toString() === userId.toString()
+    )
+    return userExpense ? parseFloat(userExpense.owed_share || 0) : 0
+  }
+
+  async getCurrentUser(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { splitwiseToken: true }
+    })
+    if (!user?.splitwiseToken) throw new Error('No Splitwise token found')
+
+    const response = await fetch(`${this.baseURL}/get_current_user`, {
+      headers: { 'Authorization': `Bearer ${user.splitwiseToken}` }
+    })
+    if (!response.ok) throw new Error(`Failed to fetch current user: ${response.status}`)
+    const data = await response.json()
+    return data.user
+  }
+
+  async getFriends(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { splitwiseToken: true, splitwiseUserId: true }
+    })
+    if (!user?.splitwiseToken) throw new Error('No Splitwise token found')
+
+    const response = await fetch(`${this.baseURL}/get_friends`, {
+      headers: { 'Authorization': `Bearer ${user.splitwiseToken}` }
+    })
+    if (!response.ok) throw new Error(`Failed to fetch friends: ${response.status}`)
+    const data = await response.json()
+    return data.friends || []
+  }
+
+  async getNetBalances(userId: string) {
+    try {
+      const friends = await this.getFriends(userId)
+      let totalIOUsOwedToUser = 0 // Friends owe me (Asset)
+      let totalDebtsOwedByUser = 0 // I owe friends (Liability)
+
+      const friendBalances: Array<{
+        friendId: string
+        name: string
+        email?: string
+        netBalance: number
+        currency: string
+      }> = []
+
+      for (const friend of friends) {
+        if (!friend.balance || !Array.isArray(friend.balance)) continue
+
+        for (const bal of friend.balance) {
+          const amount = parseFloat(bal.amount || '0')
+          if (amount > 0) {
+            totalIOUsOwedToUser += amount
+          } else if (amount < 0) {
+            totalDebtsOwedByUser += Math.abs(amount)
+          }
+
+          if (amount !== 0) {
+            friendBalances.push({
+              friendId: friend.id.toString(),
+              name: `${friend.first_name || ''} ${friend.last_name || ''}`.trim() || 'Friend',
+              email: friend.email,
+              netBalance: amount,
+              currency: bal.currency_code || 'INR'
+            })
+          }
+        }
+      }
+
+      return {
+        totalIOUsOwedToUser,
+        totalDebtsOwedByUser,
+        netBalance: totalIOUsOwedToUser - totalDebtsOwedByUser,
+        friends: friendBalances
+      }
+    } catch (error) {
+      console.error('Failed to get Splitwise net balances:', error)
+      return {
+        totalIOUsOwedToUser: 0,
+        totalDebtsOwedByUser: 0,
+        netBalance: 0,
+        friends: []
+      }
+    }
   }
 }

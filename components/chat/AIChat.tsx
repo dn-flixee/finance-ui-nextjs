@@ -57,7 +57,7 @@ export function AIChat() {
         {messages.length === 0 && (
           <div className="text-center text-gray-500 mt-8">
             <p>Ask me anything about your finances!</p>
-            <p className="text-sm mt-2">Try: "How much did I spend on food this month?"</p>
+            <p className="text-sm mt-2">Try: &quot;How much did I spend on food this month?&quot;</p>
           </div>
         )}
 

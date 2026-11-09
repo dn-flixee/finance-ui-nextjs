@@ -2,6 +2,7 @@
 "use client"
 import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -288,10 +289,22 @@ export default function ExpensesPage() {
                       onClick={() => openExpenseSheet(expense)}
                     >
                       <div className="flex flex-col space-y-1">
-                        <span className="text-white font-medium">{expense.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium">{expense.name}</span>
+                          {expense.isReconciled && (
+                            <Badge className="bg-blue-600/30 text-blue-300 border border-blue-500 text-[10px]">
+                              Reconciled
+                            </Badge>
+                          )}
+                        </div>
                         <span className="text-sm text-gray-400">
                           {expense.expenseSourceName || 'No category'}
                         </span>
+                        {expense.isReconciled && (
+                          <span className="text-xs text-indigo-300">
+                            Budget Impact: <strong className="text-white">₹{expense.userShare ?? 0}</strong> • Friend IOU: <strong className="text-green-400">+₹{expense.iouAmount ?? 0}</strong>
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-col items-end space-y-1">
                         <span className="text-white font-bold">₹{expense.amount.toLocaleString()}</span>

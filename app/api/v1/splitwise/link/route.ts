@@ -1,8 +1,9 @@
-// src/app/api/splitwise/link/route.ts
+// src/app/api/v1/splitwise/link/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ReconciliationService } from '@/services/reconciliation.service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,42 +21,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update the Splitwise expense to mark it as linked
-    const updatedExpense = await prisma.splitwiseExpense.update({
-      where: {
-        splitwiseId: splitwiseId,
-        userId: session.user.id // Ensure user owns this expense
-      },
-      data: {
-        linkedExpenseId: expenseId || null,
-        isLinked: !!expenseId
-      }
-    })
+    const reconciliationService = new ReconciliationService()
 
-    // If linking to an existing expense, update that expense too
     if (expenseId) {
-      await prisma.expense.update({
-        where: {
-          expenseId: expenseId,
-          userId: session.user.id // Ensure user owns this expense
-        },
-        data: {
-          splitwiseExpenseId: splitwiseId,
-          isSplitwiseLinked: true,
-          sourceType: 'SPLITWISE'
-        }
+      // Run complete reconciliation and split logic
+      const result = await reconciliationService.reconcileExpense(
+        expenseId,
+        splitwiseId,
+        session.user.id
+      )
+      return NextResponse.json({
+        success: true,
+        message: 'Expense linked and reconciled with Splitwise',
+        ...result
+      })
+    } else {
+      // Find currently linked expense and unreconcile
+      const swExpense = await prisma.splitwiseExpense.findFirst({
+        where: { splitwiseId, userId: session.user.id }
+      })
+      if (swExpense?.linkedExpenseId) {
+        await reconciliationService.unreconcileExpense(
+          swExpense.linkedExpenseId,
+          session.user.id
+        )
+      } else {
+        await prisma.splitwiseExpense.updateMany({
+          where: { splitwiseId, userId: session.user.id },
+          data: { isLinked: false, linkedExpenseId: null }
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Expense unlinked from Splitwise'
       })
     }
-
-    return NextResponse.json({ 
-      success: true, 
-      expense: updatedExpense 
-    })
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Splitwise link error:', error)
     return NextResponse.json(
-      { error: 'Failed to link Splitwise expense' }, 
+      { error: error.message || 'Failed to link Splitwise expense' }, 
       { status: 500 }
     )
   }

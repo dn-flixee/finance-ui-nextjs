@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
 import { useSearchParams } from 'next/navigation'
+import axios from 'axios'
 import { 
   DollarSign, 
   Link as LinkIcon, 
@@ -17,7 +18,9 @@ import {
   AlertCircle,
   ExternalLink,
   CheckCircle,
-  XCircle
+  Unlink,
+  Zap,
+  ArrowRight
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import { 
@@ -39,6 +42,14 @@ interface DashboardStats {
   syncProgress: number
 }
 
+interface FriendBalance {
+  friendId: string
+  name: string
+  email?: string
+  netBalance: number
+  currency: string
+}
+
 export function SplitwiseDashboard() {
   const dispatch = useAppDispatch()
   const { toast } = useToast()
@@ -56,10 +67,26 @@ export function SplitwiseDashboard() {
     totalSplitwise: 0,
     linkedExpenses: { linked: 0, total: 0 },
     activeGroups: 0,
-    syncProgress: 33
+    syncProgress: 0
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isAutoReconciling, setIsAutoReconciling] = useState(false)
   const [isLinking, setIsLinking] = useState<string | null>(null)
+  const [friendBalances, setFriendBalances] = useState<FriendBalance[]>([])
+  const [totalIOUsOwedToUser, setTotalIOUsOwedToUser] = useState(0)
+
+  // Fetch balances
+  const fetchBalances = async () => {
+    try {
+      const res = await axios.get('/api/v1/splitwise/balances')
+      if (res.data) {
+        setFriendBalances(res.data.friends || [])
+        setTotalIOUsOwedToUser(res.data.totalIOUsOwedToUser || 0)
+      }
+    } catch (err) {
+      console.warn('Could not load Splitwise balances:', err)
+    }
+  }
 
   // Handle OAuth callback results
   useEffect(() => {
@@ -72,31 +99,16 @@ export function SplitwiseDashboard() {
         description: "Your Splitwise account has been connected successfully.",
         duration: 5000,
       })
-      // Remove URL parameters
       window.history.replaceState({}, document.title, window.location.pathname)
     }
 
     if (error) {
-      let errorMessage = 'Failed to connect to Splitwise'
-      switch (error) {
-        case 'authorization_denied':
-          errorMessage = 'Authorization was denied. Please try again.'
-          break
-        case 'missing_code':
-          errorMessage = 'Authorization code was missing.'
-          break
-        case 'token_exchange_failed':
-          errorMessage = 'Failed to exchange authorization code for access token.'
-          break
-      }
-      
       toast({
         variant: "destructive",
         title: "Connection Failed",
-        description: errorMessage,
+        description: "Failed to connect to Splitwise. Please try again.",
         duration: 5000,
       })
-      // Remove URL parameters
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [searchParams, toast])
@@ -109,12 +121,11 @@ export function SplitwiseDashboard() {
   // Fetch expenses when connected
   useEffect(() => {
     if (isConnected) {
-      if (splitwiseStatus === 'idle') {
-        dispatch(fetchSplitwiseExpenses())
-      }
-      dispatch(fetchExpenses({ recent: true, limit: 5 }))
+      dispatch(fetchSplitwiseExpenses())
+      dispatch(fetchExpenses({ recent: true, limit: 20 }))
+      fetchBalances()
     }
-  }, [dispatch, isConnected, splitwiseStatus])
+  }, [dispatch, isConnected])
 
   // Calculate stats when expenses change
   useEffect(() => {
@@ -151,17 +162,21 @@ export function SplitwiseDashboard() {
       totalSplitwise,
       linkedExpenses: { linked: linkedCount, total: splitwiseExpenses.length },
       activeGroups: uniqueGroups,
-      syncProgress: splitwiseExpenses.length > 0 ? Math.round((linkedCount / splitwiseExpenses.length) * 100) : 33
+      syncProgress: splitwiseExpenses.length > 0 ? Math.round((linkedCount / splitwiseExpenses.length) * 100) : 0
     })
   }
 
   const handleSync = async () => {
     setIsLoading(true)
     try {
-      await dispatch(syncSplitwiseExpenses()).unwrap()
+      const res: any = await dispatch(syncSplitwiseExpenses()).unwrap()
+      await fetchBalances()
+      dispatch(fetchExpenses({ recent: true, limit: 20 }))
       toast({
-        title: "Success",
-        description: "Splitwise expenses synced successfully!",
+        title: "Sync Successful",
+        description: res?.autoReconciled > 0 
+          ? `Synced Splitwise and automatically reconciled ${res.autoReconciled} transactions!` 
+          : "Splitwise expenses and balances synced successfully!",
       })
     } catch (error: any) {
       toast({
@@ -174,45 +189,85 @@ export function SplitwiseDashboard() {
     }
   }
 
-  const handleLinkExpense = async (splitwiseExpense: any, financeExpenseId?: string) => {
-    setIsLinking(splitwiseExpense.id)
+  const handleAutoReconcile = async () => {
+    setIsAutoReconciling(true)
     try {
-      await dispatch(linkSplitwiseExpense({
-        splitwiseId: splitwiseExpense.splitwiseId,
-        expenseId: financeExpenseId
-      })).unwrap()
-      
+      const res = await axios.post('/api/v1/reconciliation/auto')
       toast({
-        title: "Success",
-        description: "Expense linked successfully!",
+        title: "Auto-Reconciliation Complete",
+        description: res.data.message || `Reconciled ${res.data.reconciledCount} transactions!`
       })
+      dispatch(fetchSplitwiseExpenses())
+      dispatch(fetchExpenses({ recent: true, limit: 20 }))
+      fetchBalances()
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Link Failed",
-        description: error.message || "Failed to link expense",
+        title: "Auto-Reconcile Failed",
+        description: error.response?.data?.error || error.message
+      })
+    } finally {
+      setIsAutoReconciling(false)
+    }
+  }
+
+  const handleReconcile = async (splitwiseId: string, expenseId: string) => {
+    setIsLinking(splitwiseId)
+    try {
+      await axios.post('/api/v1/reconciliation/reconcile', {
+        splitwiseId,
+        expenseId
+      })
+      toast({
+        title: "Reconciliation Successful",
+        description: "Bank transaction split into user share + pending friend IOUs!",
+      })
+      dispatch(fetchSplitwiseExpenses())
+      dispatch(fetchExpenses({ recent: true, limit: 20 }))
+      fetchBalances()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Reconciliation Failed",
+        description: error.response?.data?.error || error.message || "Failed to link",
       })
     } finally {
       setIsLinking(null)
     }
   }
 
-    const handleConnect = () => {
-      const clientId = process.env.NEXT_PUBLIC_SPLITWISE_CLIENT_ID
-      const redirectUri = `${window.location.origin}/api/v1/splitwise/callback`
-      const state = Math.random().toString(36).substring(7)
+  const handleUnreconcile = async (expenseId: string) => {
+    setIsLinking(expenseId)
+    try {
+      await axios.post('/api/v1/reconciliation/unreconcile', { expenseId })
+      toast({
+        title: "Unlinked",
+        description: "Reconciliation reversed. Expense restored to full amount.",
+      })
+      dispatch(fetchSplitwiseExpenses())
+      dispatch(fetchExpenses({ recent: true, limit: 20 }))
+      fetchBalances()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Unlink Failed",
+        description: error.response?.data?.error || error.message,
+      })
+    } finally {
+      setIsLinking(null)
+    }
+  }
 
-      const authUrl = `https://secure.splitwise.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`
+  const handleConnect = () => {
+    const clientId = process.env.NEXT_PUBLIC_SPLITWISE_CLIENT_ID
+    const redirectUri = `${window.location.origin}/api/v1/splitwise/callback`
+    const state = Math.random().toString(36).substring(7)
+    const authUrl = `https://secure.splitwise.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`
+    localStorage.removeItem('splitwise_oauth_state')
+    localStorage.setItem('splitwise_oauth_state', state)
+    window.location.assign(authUrl)
+  }
 
-      // Clear any existing OAuth state
-      localStorage.removeItem('splitwise_oauth_state')
-      localStorage.setItem('splitwise_oauth_state', state)
-
-      // Use location.assign for a clean redirect
-      window.location.assign(authUrl)
-      }
-
-  // Loading state
   if (splitwiseStatus === 'loading' && splitwiseExpenses.length === 0) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -224,11 +279,10 @@ export function SplitwiseDashboard() {
     )
   }
 
-  // Not connected state
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gray-900 p-6">
-        <Card className="max-w-md mx-auto bg-gray-800 border-gray-700">
+      <div className="min-h-screen bg-gray-900 p-6 flex items-center justify-center">
+        <Card className="max-w-md w-full bg-gray-800 border-gray-700">
           <CardHeader className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-white" />
@@ -237,7 +291,7 @@ export function SplitwiseDashboard() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-300 mb-6">
-              Connect your Splitwise account to sync and manage your shared expenses seamlessly.
+              Connect your Splitwise account to automatically reconcile shared bills and track friend IOUs.
             </p>
             <Button 
               onClick={handleConnect}
@@ -246,9 +300,6 @@ export function SplitwiseDashboard() {
               <ExternalLink className="w-4 h-4 mr-2" />
               Connect Splitwise Account
             </Button>
-            <p className="text-xs text-gray-500 mt-4">
-              Your data is secure and we only read your expense information.
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -256,245 +307,313 @@ export function SplitwiseDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="bg-green-600 px-6 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-white flex items-center">
-                <DollarSign className="mr-2 w-6 h-6" />
-                Splitwise Integration
-              </h1>
-              <p className="text-green-100 mt-1">Sync and manage your shared expenses</p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Badge className="bg-green-700 text-green-100 hover:bg-green-700">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                Connected
-              </Badge>
-              <Button 
-                onClick={handleSync} 
-                disabled={isLoading}
-                className="bg-green-700 hover:bg-green-800 text-white border-0"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Sync Now
-              </Button>
-            </div>
-          </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white flex items-center">
+            <DollarSign className="mr-2 w-8 h-8 text-green-400" />
+            Splitwise & Reconciliation Hub
+          </h1>
+          <p className="text-gray-400 mt-1">Reconcile bank debits with Splitwise shared expenses</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button 
+            onClick={handleAutoReconcile}
+            disabled={isAutoReconciling}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Zap className={`w-4 h-4 mr-2 ${isAutoReconciling ? 'animate-spin' : ''}`} />
+            Auto-Reconcile Matches
+          </Button>
+          <Button 
+            onClick={handleSync} 
+            disabled={isLoading}
+            variant="outline"
+            className="border-gray-600 text-gray-300 hover:bg-gray-800"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Sync Splitwise
+          </Button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Splitwise */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Total Splitwise</p>
-                  <p className="text-3xl font-bold text-white">
-                    ₹{stats.totalSplitwise.toLocaleString()}
-                  </p>
-                  <p className="text-gray-500 text-xs">Your share this month</p>
-                </div>
-                <DollarSign className="w-8 h-8 text-gray-400" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm font-medium">Pending IOUs (Owed to You)</p>
+                <p className="text-3xl font-bold text-green-400">
+                  ₹{totalIOUsOwedToUser.toLocaleString()}
+                </p>
+                <p className="text-gray-500 text-xs mt-1">Across all friends</p>
               </div>
-            </CardContent>
-          </Card>
+              <Users className="w-8 h-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Linked Expenses */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Linked Expenses</p>
-                  <p className="text-3xl font-bold text-white">
-                    {stats.linkedExpenses.linked}/{stats.linkedExpenses.total}
-                  </p>
-                  <p className="text-gray-500 text-xs">Successfully linked</p>
-                </div>
-                <LinkIcon className="w-8 h-8 text-gray-400" />
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm font-medium">Reconciled Expenses</p>
+                <p className="text-3xl font-bold text-white">
+                  {stats.linkedExpenses.linked}/{stats.linkedExpenses.total}
+                </p>
+                <p className="text-gray-500 text-xs mt-1">Matched with bank feeds</p>
               </div>
-            </CardContent>
-          </Card>
+              <LinkIcon className="w-8 h-8 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Active Groups */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Active Groups</p>
-                  <p className="text-3xl font-bold text-white">{stats.activeGroups}</p>
-                  <p className="text-gray-500 text-xs">Splitwise groups</p>
-                </div>
-                <Users className="w-8 h-8 text-gray-400" />
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm font-medium">Your Monthly Share</p>
+                <p className="text-3xl font-bold text-white">
+                  ₹{stats.totalSplitwise.toLocaleString()}
+                </p>
+                <p className="text-gray-500 text-xs mt-1">Actual budget impact</p>
               </div>
-            </CardContent>
-          </Card>
+              <TrendingUp className="w-8 h-8 text-indigo-400" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Sync Progress */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="w-full">
-                  <p className="text-gray-400 text-sm font-medium">Sync Progress</p>
-                  <p className="text-3xl font-bold text-white">{stats.syncProgress}%</p>
-                  <div className="mt-3 bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${stats.syncProgress}%` }}
-                    />
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="w-full">
+                <p className="text-gray-400 text-sm font-medium">Reconciliation Progress</p>
+                <p className="text-3xl font-bold text-white">{stats.syncProgress}%</p>
+                <div className="mt-3 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${stats.syncProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Friends Who Owe Money */}
+      {friendBalances.length > 0 && (
+        <Card className="bg-gray-800 border-gray-700 mb-8">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <Users className="w-5 h-5 text-green-400" />
+              Friends Balances (Splitwise Ledger)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {friendBalances.map(f => (
+                <div key={f.friendId} className="p-3 bg-gray-750 border border-gray-700 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-white">{f.name}</p>
+                    <p className="text-xs text-gray-500">{f.email || 'Splitwise Friend'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${f.netBalance > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {f.netBalance > 0 ? `+₹${f.netBalance.toLocaleString()}` : `-₹${Math.abs(f.netBalance).toLocaleString()}`}
+                    </p>
+                    <span className="text-[10px] text-gray-400">
+                      {f.netBalance > 0 ? 'Owes you' : 'You owe'}
+                    </span>
                   </div>
                 </div>
-                <TrendingUp className="w-8 h-8 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Splitwise Expenses */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">S</span>
-                </div>
-                <div>
-                  <CardTitle className="text-white text-lg">Splitwise Expenses</CardTitle>
-                  <p className="text-gray-400 text-sm">Recent expenses from your Splitwise account</p>
-                </div>
+      {/* Two Column Grid: Splitwise Expenses vs Finance App Expenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Splitwise Expenses */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader className="pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center font-bold text-white text-sm">
+                S
               </div>
-            </CardHeader>
-            <CardContent>
-              {splitwiseExpenses.length === 0 ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 mx-auto text-gray-600 mb-4" />
-                  <p className="text-gray-400 mb-2">No Splitwise expenses found</p>
-                  <p className="text-gray-500 text-sm">
-                    Sync your account to see your shared expenses
-                  </p>
-                  <Button 
-                    onClick={handleSync}
-                    className="mt-4 bg-green-600 hover:bg-green-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    Sync Expenses
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {splitwiseExpenses.slice(0, 5).map((expense) => (
-                    <div key={expense.id} className="bg-gray-750 border border-gray-600 rounded-lg p-4">
+              <div>
+                <CardTitle className="text-white text-base">Splitwise Expenses</CardTitle>
+                <p className="text-gray-400 text-xs">Shared expenses imported from Splitwise</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {splitwiseExpenses.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                <p>No Splitwise expenses found. Sync your account.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                {splitwiseExpenses.map((expense) => {
+                  // Find candidate matching finance expense
+                  const matchingFinance = financeExpenses.find(fe => 
+                    !fe.isSplitwiseLinked && Math.abs(fe.amount - expense.totalAmount) < 2
+                  )
+
+                  return (
+                    <div key={expense.id} className="bg-gray-750 border border-gray-700 rounded-lg p-3">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h3 className="text-white font-medium text-base">{expense.description}</h3>
-                          <p className="text-gray-400 text-sm">{expense.groupName || 'Personal'}</p>
-                          <p className="text-gray-500 text-xs mt-1">
-                            {new Date(expense.date).toLocaleDateString()}
-                          </p>
-                          <div className="flex items-center space-x-2 mt-3">
-                            <Badge variant="outline" className="text-xs border-blue-500 text-blue-400 bg-blue-500/10">
-                              {expense.category || 'General'}
-                            </Badge>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-white font-medium text-sm">{expense.description}</h3>
                             <Badge 
-                              variant={expense.isLinked ? "default" : "destructive"} 
-                              className="text-xs"
+                              variant={expense.isLinked ? "default" : "outline"} 
+                              className={`text-[10px] ${expense.isLinked ? 'bg-green-600 text-white' : 'border-gray-500 text-gray-400'}`}
                             >
-                              {expense.isLinked ? "Linked" : "Unlinked"}
+                              {expense.isLinked ? "Reconciled" : "Unlinked"}
                             </Badge>
                           </div>
-                          <div className="flex items-center space-x-1 mt-2 text-xs text-gray-400">
-                            <Users className="w-3 h-3" />
-                            <span>
-                              {expense.participants && Array.isArray(expense.participants) 
-                                ? expense.participants.map(p => p.first_name).join(', ') 
-                                : 'No participants'
-                              }
-                            </span>
-                          </div>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {new Date(expense.date).toLocaleDateString()} • {expense.category || 'General'}
+                          </p>
+                          <p className="text-xs text-gray-300 mt-1">
+                            Paid by: <span className="font-semibold text-white">{expense.paidBy}</span> • Your Share: <span className="text-green-400 font-semibold">₹{expense.userShare}</span>
+                          </p>
                         </div>
-                        <div className="text-right ml-4">
-                          <p className="text-white font-bold text-lg">
-                            ₹{expense.userShare.toLocaleString()}
+                        <div className="text-right ml-3">
+                          <p className="text-white font-bold text-base">
+                            ₹{expense.totalAmount.toLocaleString()}
                           </p>
-                          <p className="text-gray-400 text-xs">
-                            of ₹{expense.totalAmount.toLocaleString()}
-                          </p>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="mt-3 border-gray-600 text-gray-300 hover:bg-gray-700"
-                            onClick={() => handleLinkExpense(expense)}
-                            disabled={isLinking === expense.id}
-                          >
-                            {isLinking === expense.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                            ) : (
+                          {expense.isLinked ? (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="mt-2 h-7 text-xs text-red-400 hover:text-red-300 hover:bg-gray-700"
+                              onClick={() => handleUnreconcile(expense.linkedExpenseId!)}
+                              disabled={isLinking === expense.linkedExpenseId}
+                            >
+                              <Unlink className="w-3 h-3 mr-1" />
+                              Unlink
+                            </Button>
+                          ) : matchingFinance ? (
+                            <Button 
+                              size="sm" 
+                              className="mt-2 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                              onClick={() => handleReconcile(expense.splitwiseId, matchingFinance.expenseId)}
+                              disabled={isLinking === expense.splitwiseId}
+                            >
                               <LinkIcon className="w-3 h-3 mr-1" />
-                            )}
-                            {expense.isLinked ? "View" : "Link"}
-                          </Button>
+                              Match with &quot;{matchingFinance.name}&quot;
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-gray-500 block mt-2">No bank match</span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Finance App Expenses */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-white text-lg">Finance App Expenses</CardTitle>
-                  <p className="text-gray-400 text-sm">Your existing expenses that can be linked</p>
-                </div>
+                  )
+                })}
               </div>
-            </CardHeader>
-            <CardContent>
-              {financeExpenses.length === 0 ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 mx-auto text-gray-600 mb-4" />
-                  <p className="text-gray-400 mb-2">No recent expenses</p>
-                  <p className="text-gray-500 text-sm">
-                    Add some expenses to your finance app to see them here
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {financeExpenses.slice(0, 5).map((expense) => (
-                    <div key={expense.expenseId} className="bg-gray-750 border border-gray-600 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-white font-medium text-base">{expense.name}</h3>
-                          <p className="text-gray-400 text-sm">
-                            {expense.expenseSourceName || 'No category'}
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Finance App Expenses */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader className="pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white text-sm">
+                ₹
+              </div>
+              <div>
+                <CardTitle className="text-white text-base">Bank Expenses</CardTitle>
+                <p className="text-gray-400 text-xs">Bank debits from accounts and statement imports</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {financeExpenses.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                <p>No bank expenses recorded yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                {financeExpenses.map((expense) => {
+                  const matchingSw = splitwiseExpenses.find(se => 
+                    !se.isLinked && Math.abs(se.totalAmount - expense.amount) < 2
+                  )
+
+                  return (
+                    <div key={expense.expenseId} className="bg-gray-750 border border-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-white font-medium text-sm">{expense.name}</h3>
+                            {expense.isReconciled ? (
+                              <Badge className="bg-blue-600/30 text-blue-300 border border-blue-500 text-[10px]">
+                                Reconciled
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] border-gray-600 text-gray-400">
+                                Unreconciled
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {new Date(expense.date).toLocaleDateString()} • {expense.accountName || 'Account'}
                           </p>
+                          {expense.isReconciled ? (
+                            <p className="text-xs text-blue-300 mt-1">
+                              Budget Impact: <span className="font-semibold text-white">₹{expense.userShare ?? 0}</span> • Friend IOU: <span className="font-semibold text-green-400">+₹{expense.iouAmount ?? 0}</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Full amount hits budget: ₹{expense.amount}
+                            </p>
+                          )}
                         </div>
-                        <div className="text-right">
-                          <p className="text-white font-bold text-lg">
+                        <div className="text-right ml-3">
+                          <p className="text-white font-bold text-base">
                             ₹{expense.amount.toLocaleString()}
                           </p>
+                          {expense.isReconciled ? (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="mt-2 h-7 text-xs text-red-400 hover:text-red-300 hover:bg-gray-700"
+                              onClick={() => handleUnreconcile(expense.expenseId)}
+                              disabled={isLinking === expense.expenseId}
+                            >
+                              <Unlink className="w-3 h-3 mr-1" />
+                              Unlink
+                            </Button>
+                          ) : matchingSw ? (
+                            <Button 
+                              size="sm" 
+                              className="mt-2 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                              onClick={() => handleReconcile(matchingSw.splitwiseId, expense.expenseId)}
+                              disabled={isLinking === matchingSw.splitwiseId}
+                            >
+                              <LinkIcon className="w-3 h-3 mr-1" />
+                              Reconcile with &quot;{matchingSw.description}&quot;
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-gray-500 block mt-2">No Splitwise match</span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

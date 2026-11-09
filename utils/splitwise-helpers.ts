@@ -1,5 +1,5 @@
 // src/utils/splitwise-helpers.ts
-import { SplitwiseExpense } from '@/types'
+import { SplitwiseExpense } from '@/lib/types'
 
 interface CreateExpenseOptions {
   accountId?: string

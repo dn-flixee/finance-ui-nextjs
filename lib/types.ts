@@ -16,8 +16,31 @@ export enum AccountType {
 export enum TransactionSource {
   MANUAL = 'MANUAL',
   EMAIL_PARSED = 'EMAIL_PARSED',
+  SMS_PARSED = 'SMS_PARSED',
+  STATEMENT_PARSED = 'STATEMENT_PARSED',
   SPLITWISE = 'SPLITWISE',
+  SPLITWISE_SETTLEMENT = 'SPLITWISE_SETTLEMENT',
   BANK_SYNC = 'BANK_SYNC'
+}
+
+export enum IOUStatus {
+  PENDING = 'PENDING',
+  PARTIALLY_SETTLED = 'PARTIALLY_SETTLED',
+  SETTLED = 'SETTLED',
+  WRITTEN_OFF = 'WRITTEN_OFF'
+}
+
+export enum RuleMatchType {
+  EXACT = 'EXACT',
+  CONTAINS = 'CONTAINS',
+  STARTS_WITH = 'STARTS_WITH',
+  REGEX = 'REGEX'
+}
+
+export enum RuleAction {
+  CATEGORIZE = 'CATEGORIZE',
+  IGNORE = 'IGNORE',
+  TRANSFER = 'TRANSFER'
 }
 
 export enum EmailProvider {
@@ -138,6 +161,8 @@ export interface Income {
   // Enhanced fields
   sourceType: TransactionSource
   sourceId?: string
+  isSettlement?: boolean
+  isIgnored?: boolean
   
   createdAt: Date
   updatedAt: Date
@@ -158,7 +183,62 @@ export interface Expense {
   sourceId?: string
   splitwiseExpenseId?: string
   isSplitwiseLinked: boolean
+  splitwiseUserShare?: number
+  splitwiseTotalAmount?: number
   
+  // Phantom expense split fields
+  userShare?: number
+  iouAmount?: number
+  isReconciled?: boolean
+  isIgnored?: boolean
+  
+  createdAt: Date
+  updatedAt: Date
+}
+
+// ================================
+// PHANTOM EXPENSE & IOU TYPES
+// ================================
+
+export interface PendingIOU {
+  id: string
+  userId: string
+  expenseId?: string
+  splitwiseExpenseId?: string
+  friendName: string
+  friendSplitwiseId?: string
+  amount: number
+  settledAmount: number
+  status: IOUStatus
+  notes?: string
+  dueDate?: Date
+  createdAt: Date
+  updatedAt: Date
+  expense?: Expense
+  settlements?: IOUSettlement[]
+}
+
+export interface IOUSettlement {
+  id: string
+  iouId: string
+  incomeId?: string
+  amount: number
+  settledAt: Date
+  notes?: string
+  iou?: PendingIOU
+  income?: Income
+}
+
+export interface CategorizationRule {
+  id: string
+  userId: string
+  matchPattern: string
+  matchType: RuleMatchType
+  action: RuleAction
+  targetCategory?: string
+  targetSourceId?: string
+  toAccountId?: string
+  priority: number
   createdAt: Date
   updatedAt: Date
 }
@@ -475,11 +555,17 @@ export interface DashboardStats {
   // Enhanced stats
   monthlyIncome: number
   monthlyExpenses: number
-  topExpenseCategories: Array<{
+  topExpenseCategories?: Array<{
     category: string
     amount: number
     percentage: number
   }>
+
+  // True Balance & Phantom Expense stats
+  trueBalance?: number
+  pendingIOUsTotal?: number
+  debtsOwedTotal?: number
+  recentTransactions?: any[]
 }
 
 export interface MonthlyStats {

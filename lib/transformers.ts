@@ -43,6 +43,14 @@ export const transformExpense = (expense: any) => ({
   // Splitwise integration
   splitwiseExpenseId: expense.splitwiseExpenseId || null,
   isSplitwiseLinked: expense.isSplitwiseLinked || false,
+  splitwiseUserShare: expense.splitwiseUserShare || null,
+  splitwiseTotalAmount: expense.splitwiseTotalAmount || null,
+
+  // Phantom expense split fields
+  userShare: expense.userShare ?? null,
+  iouAmount: expense.iouAmount ?? null,
+  isReconciled: expense.isReconciled || false,
+  isIgnored: expense.isIgnored || false,
   
   // System fields
   userId: expense.userId,
@@ -65,6 +73,8 @@ export const transformIncome = (income: any) => ({
   // Enhanced tracking fields
   sourceType: income.sourceType || TransactionSource.MANUAL,
   sourceId: income.sourceId || null,
+  isSettlement: income.isSettlement || false,
+  isIgnored: income.isIgnored || false,
   
   // System fields
   userId: income.userId,
