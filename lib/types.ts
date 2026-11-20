@@ -154,7 +154,9 @@ export interface Income {
   amount: number
   date: Date
   accountId: string
+  accountName?: string
   incomeSourceId?: string // Made optional to match schema
+  incomeSourceName?: string
   userId: string
   iconUrl?: string
   
@@ -174,7 +176,10 @@ export interface Expense {
   amount: number
   date: Date
   accountId: string
+  accountName?: string
   expenseSourceId?: string // Made optional to match schema
+  expenseSourceName?: string
+  expenseSourceBudget?: number
   userId: string
   iconUrl?: string
   
@@ -432,7 +437,7 @@ export interface UpdateFinanceAccountInput {
 export interface CreateIncomeInput {
   name: string
   amount: number
-  date: Date
+  date: Date | string
   accountId: string
   incomeSourceId?: string
   iconUrl?: string
@@ -443,29 +448,42 @@ export interface UpdateIncomeInput {
   incomeId: string
   name?: string
   amount?: number
-  date?: Date
+  date?: Date | string
   accountId?: string
   incomeSourceId?: string
   iconUrl?: string
   sourceType?: TransactionSource
 }
 
+export interface CreateExpenseSplitwiseInput {
+  enabled: boolean
+  splitType: 'group' | 'friends'
+  groupId?: string
+  groupName?: string
+  friendIds?: string[]
+  splitEqually?: boolean
+  userShare?: number
+  friendShares?: Record<string, number>
+}
+
 export interface CreateExpenseInput {
   name: string
   amount: number
-  date: Date
+  date: Date | string
   accountId: string
   expenseSourceId?: string
   iconUrl?: string
   sourceType?: TransactionSource
   splitwiseExpenseId?: string
+  isSplitwiseLinked?: boolean
+  splitwise?: CreateExpenseSplitwiseInput
 }
 
 export interface UpdateExpenseInput {
   expenseId: string
   name?: string
   amount?: number
-  date?: Date
+  date?: Date | string
   accountId?: string
   expenseSourceId?: string
   iconUrl?: string
@@ -477,9 +495,9 @@ export interface UpdateExpenseInput {
 export interface CreateTransferInput {
   name: string
   amount: number
-  date: Date
-  fromAccountId: string
-  toAccountId: string
+  date: Date | string
+  fromAccountId?: string
+  toAccountId?: string
   iconUrl?: string
   sourceType?: TransactionSource
 }
@@ -488,11 +506,34 @@ export interface UpdateTransferInput {
   transferId: string
   name?: string
   amount?: number
-  date?: Date
+  date?: Date | string
   fromAccountId?: string
   toAccountId?: string
   iconUrl?: string
   sourceType?: TransactionSource
+}
+
+// Splitwise Group & Friend types
+export interface SplitwiseMember {
+  id: string
+  name: string
+  email?: string
+}
+
+export interface SplitwiseGroup {
+  id: string
+  name: string
+  groupType?: string
+  updatedAt?: string
+  members: SplitwiseMember[]
+}
+
+export interface SplitwiseFriend {
+  id: string
+  name: string
+  email?: string
+  picture?: string
+  balance?: Array<{ currency_code: string; amount: string }>
 }
 
 export interface CreateSplitwiseExpense {

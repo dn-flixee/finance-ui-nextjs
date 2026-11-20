@@ -3,7 +3,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { RootState } from '@/lib/store'
 import axios from 'axios'
 import { toast } from '@/components/ui/use-toast'
-import { SplitwiseExpense } from '@/lib/types'
+import { SplitwiseExpense, SplitwiseGroup, SplitwiseFriend } from '@/lib/types'
 
 // Enhanced interface for splitwise participant
 export interface SplitwiseParticipant {
@@ -23,6 +23,10 @@ export interface SplitwiseExpenseData extends SplitwiseExpense {
 
 interface SplitwiseState {
   expenses: SplitwiseExpenseData[]
+  groups: SplitwiseGroup[]
+  friends: SplitwiseFriend[]
+  groupsStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
+  friendsStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
   isConnected: boolean
   connectionStatus: 'idle' | 'checking' | 'connected' | 'disconnected' | 'error'
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -33,6 +37,10 @@ interface SplitwiseState {
 
 const initialState: SplitwiseState = {
   expenses: [],
+  groups: [],
+  friends: [],
+  groupsStatus: 'idle',
+  friendsStatus: 'idle',
   isConnected: false,
   connectionStatus: 'idle',
   status: 'idle',
@@ -72,7 +80,7 @@ export const connectToSpiltwise = createAsyncThunk(
 
 export const fetchSplitwiseExpenses = createAsyncThunk(
   'splitwise/fetchExpenses',
-  async (params?: { limit?: number; offset?: number }, { rejectWithValue }) => {
+  async (params: { limit?: number; offset?: number } | void, { rejectWithValue }) => {
     try {
       const searchParams = new URLSearchParams()
       if (params?.limit) searchParams.set('limit', params.limit.toString())
@@ -316,7 +324,7 @@ const splitwiseSlice = createSlice({
         const expense = state.expenses.find(exp => exp.splitwiseId === splitwiseId)
         if (expense) {
           expense.isLinked = false
-          expense.linkedExpenseId = null
+          expense.linkedExpenseId = undefined
         }
         toast({
           title: "Unlinked",
@@ -330,6 +338,34 @@ const splitwiseSlice = createSlice({
           title: "Unlink Failed",
           description: action.payload as string,
         })
+      })
+
+    // Fetch groups
+    builder
+      .addCase(fetchSplitwiseGroups.pending, (state) => {
+        state.groupsStatus = 'loading'
+      })
+      .addCase(fetchSplitwiseGroups.fulfilled, (state, action) => {
+        state.groupsStatus = 'succeeded'
+        state.groups = action.payload.groups || []
+      })
+      .addCase(fetchSplitwiseGroups.rejected, (state, action) => {
+        state.groupsStatus = 'failed'
+        state.error = action.payload as string
+      })
+
+    // Fetch friends
+    builder
+      .addCase(fetchSplitwiseFriends.pending, (state) => {
+        state.friendsStatus = 'loading'
+      })
+      .addCase(fetchSplitwiseFriends.fulfilled, (state, action) => {
+        state.friendsStatus = 'succeeded'
+        state.friends = action.payload.friends || []
+      })
+      .addCase(fetchSplitwiseFriends.rejected, (state, action) => {
+        state.friendsStatus = 'failed'
+        state.error = action.payload as string
       })
 
     // Create expense
@@ -380,6 +416,10 @@ export const {
 
 // Selectors
 export const selectSplitwiseExpenses = (state: RootState) => state.splitwise.expenses
+export const selectSplitwiseGroups = (state: RootState) => state.splitwise.groups
+export const selectSplitwiseFriends = (state: RootState) => state.splitwise.friends
+export const selectSplitwiseGroupsStatus = (state: RootState) => state.splitwise.groupsStatus
+export const selectSplitwiseFriendsStatus = (state: RootState) => state.splitwise.friendsStatus
 export const selectSplitwiseConnection = (state: RootState) => state.splitwise.isConnected
 export const selectSplitwiseStatus = (state: RootState) => state.splitwise.status
 export const selectSplitwiseError = (state: RootState) => state.splitwise.error

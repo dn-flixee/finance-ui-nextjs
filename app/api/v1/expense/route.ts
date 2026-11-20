@@ -8,18 +8,29 @@ import { z } from 'zod'
 import { TransactionSource } from '@/lib/types'
 import { CategorizationService } from '@/services/categorization.service'
 import { ReconciliationService } from '@/services/reconciliation.service'
+import { SplitwiseService } from '@/lib/integrations/splitwise'
 
 const expenseSchema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
-  date: z.string().datetime().or(z.date()),
+  date: z.string().datetime().or(z.date()).or(z.string()),
   accountId: z.string().min(1),
   expenseSourceId: z.string().min(1).optional(),
   iconUrl: z.string().url().optional(),
   sourceType: z.nativeEnum(TransactionSource).optional(),
   sourceId: z.string().optional(),
   splitwiseExpenseId: z.string().optional(),
-  isSplitwiseLinked: z.boolean().optional()
+  isSplitwiseLinked: z.boolean().optional(),
+  splitwise: z.object({
+    enabled: z.boolean(),
+    splitType: z.enum(['group', 'friends']),
+    groupId: z.string().optional(),
+    groupName: z.string().optional(),
+    friendIds: z.array(z.string()).optional(),
+    splitEqually: z.boolean().optional(),
+    userShare: z.number().optional(),
+    friendShares: z.record(z.string(), z.number()).optional()
+  }).optional()
 })
 
 export async function GET(request: NextRequest) {
@@ -98,6 +109,105 @@ export async function POST(request: NextRequest) {
     const isIgnored = evaluation.isIgnored || false
     const expenseSourceId = validatedData.expenseSourceId || evaluation.expenseSourceId || null
 
+    // If Splitwise split is requested, create expense in Splitwise first
+    let splitwiseCreatedExpense: any = null
+    if (validatedData.splitwise?.enabled) {
+      try {
+        const splitwiseService = new SplitwiseService()
+        const user = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { splitwiseToken: true, splitwiseUserId: true }
+        })
+
+        if (!user?.splitwiseToken) {
+          return NextResponse.json({
+            error: 'Splitwise is not connected. Please connect Splitwise in your settings first.'
+          }, { status: 400 })
+        }
+
+        const swConfig = validatedData.splitwise
+        const totalAmount = validatedData.amount
+
+        if (swConfig.splitType === 'group' && swConfig.groupId) {
+          // Group split
+          const splitResult = await splitwiseService.createExpense(session.user.id, {
+            cost: totalAmount,
+            description: validatedData.name,
+            date: new Date(validatedData.date),
+            groupId: swConfig.groupId,
+            splitEqually: swConfig.splitEqually ?? true
+          })
+          splitwiseCreatedExpense = splitResult.splitwiseExpense
+        } else if (swConfig.splitType === 'friends' && swConfig.friendIds && swConfig.friendIds.length > 0) {
+          // Friends split
+          const currentSwUserId = user.splitwiseUserId || (await splitwiseService.getCurrentUser(session.user.id))?.id?.toString()
+          if (!currentSwUserId) {
+            throw new Error('Could not identify Splitwise user ID.')
+          }
+
+          let usersPayload: Array<{
+            userId: string
+            paidShare: number
+            owedShare: number
+          }> = []
+
+          if (swConfig.splitEqually ?? true) {
+            // Split equally among user + friends
+            const totalPeople = 1 + swConfig.friendIds.length
+            const totalCents = Math.round(totalAmount * 100)
+            const baseCents = Math.floor(totalCents / totalPeople)
+            const remainderCents = totalCents - (baseCents * totalPeople)
+
+            const userOwed = (baseCents + remainderCents) / 100
+            const friendOwed = baseCents / 100
+
+            usersPayload = [
+              {
+                userId: currentSwUserId,
+                paidShare: totalAmount,
+                owedShare: userOwed
+              },
+              ...swConfig.friendIds.map(fId => ({
+                userId: fId,
+                paidShare: 0,
+                owedShare: friendOwed
+              }))
+            ]
+          } else {
+            // Custom shares
+            const userOwed = swConfig.userShare ?? totalAmount
+            usersPayload = [
+              {
+                userId: currentSwUserId,
+                paidShare: totalAmount,
+                owedShare: userOwed
+              },
+              ...swConfig.friendIds.map(fId => ({
+                userId: fId,
+                paidShare: 0,
+                owedShare: swConfig.friendShares?.[fId] ?? 0
+              }))
+            ]
+          }
+
+          const splitResult = await splitwiseService.createExpense(session.user.id, {
+            cost: totalAmount,
+            description: validatedData.name,
+            date: new Date(validatedData.date),
+            groupId: 0,
+            splitEqually: false,
+            users: usersPayload
+          })
+          splitwiseCreatedExpense = splitResult.splitwiseExpense
+        }
+      } catch (err: any) {
+        console.error('Failed to create Splitwise expense:', err)
+        return NextResponse.json({
+          error: `Failed to split on Splitwise: ${err.message || 'Unknown Splitwise error'}`
+        }, { status: 400 })
+      }
+    }
+
     const expense = await prisma.expense.create({
       data: {
         name: validatedData.name,
@@ -107,10 +217,10 @@ export async function POST(request: NextRequest) {
         expenseSourceId,
         userId: session.user.id,
         iconUrl: validatedData.iconUrl || null,
-        sourceType: validatedData.sourceType || TransactionSource.MANUAL,
+        sourceType: splitwiseCreatedExpense ? TransactionSource.SPLITWISE : (validatedData.sourceType || TransactionSource.MANUAL),
         sourceId: validatedData.sourceId || null,
-        splitwiseExpenseId: validatedData.splitwiseExpenseId || null,
-        isSplitwiseLinked: validatedData.isSplitwiseLinked || false,
+        splitwiseExpenseId: splitwiseCreatedExpense?.splitwiseId || validatedData.splitwiseExpenseId || null,
+        isSplitwiseLinked: !!splitwiseCreatedExpense || validatedData.isSplitwiseLinked || false,
         isIgnored
       },
       include: {
@@ -119,9 +229,21 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    // Auto-reconcile if matching Splitwise expense found
+    // Auto-reconcile if newly created on Splitwise OR matching Splitwise expense found
     let reconciledExpense = expense
-    if (evaluation.splitwiseCandidate) {
+    if (splitwiseCreatedExpense) {
+      try {
+        const reconService = new ReconciliationService()
+        const reconResult = await reconService.reconcileExpense(
+          expense.expenseId,
+          splitwiseCreatedExpense.splitwiseId,
+          session.user.id
+        )
+        reconciledExpense = reconResult.expense as any
+      } catch (err) {
+        console.warn('Auto-reconciliation on expense creation failed:', err)
+      }
+    } else if (evaluation.splitwiseCandidate) {
       try {
         const reconService = new ReconciliationService()
         const reconResult = await reconService.reconcileExpense(

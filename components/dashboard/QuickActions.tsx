@@ -9,19 +9,19 @@ export function QuickActions() {
   const router = useRouter()
 
   const handleAddIncome = () => {
-    router.push('/dashboard/income')
+    router.push('/income')
   }
 
   const handleAddExpense = () => {
-    router.push('/dashboard/expense')
+    router.push('/expense')
   }
 
   const handleNewTransfer = () => {
-    router.push('/dashboard/transfer')
+    router.push('/transfers')
   }
 
   const handleSyncSplitwise = () => {
-    router.push('/dsplitwise')
+    router.push('/splitwise')
   }
 
   const handleSyncEmails = () => {
